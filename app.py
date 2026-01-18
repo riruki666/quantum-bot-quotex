@@ -11,7 +11,7 @@ import time
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="QUANTUM BOT - Alta Precisão", layout="wide")
 
-# --- CSS PARA VISUAL PREMIUM ---
+# --- ESTILIZAÇÃO CSS ---
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
@@ -20,113 +20,97 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- INICIALIZAÇÃO DO PLACAR ---
+# --- FUNÇÕES CORE COM CACHE (PREVENÇÃO DE TRAVAMENTO) ---
+@st.cache_data(ttl=10)
+def buscar_dados_seguro(ticker, intervalo):
+    try:
+        # Busca 2 dias para garantir que o cálculo de indicadores tenha massa de dados
+        dados = yf.download(ticker, period="2d", interval=intervalo, progress=False, threads=False)
+        if dados.empty:
+            return None
+        return dados
+    except:
+        return None
+
+def analisar_estatisticas(df):
+    if df is None or len(df) < 20: return 0, 50, 0, 0
+    
+    # Cálculos Técnicos
+    df['RSI'] = ta.rsi(df['Close'], length=14)
+    bb = ta.bbands(df['Close'], length=20, std=2)
+    
+    rsi = df['RSI'].iloc[-1]
+    preco = df['Close'].iloc[-1]
+    sup = df['Low'].rolling(window=20).min().iloc[-1]
+    res = df['High'].rolling(window=20).max().iloc[-1]
+    
+    # Lógica de Decisão
+    pontos = 0
+    if (preco <= bb['BBL_20_2.0'].iloc[-1] or preco <= sup) and rsi < 35:
+        pontos = 1 # Compra
+    elif (preco >= bb['BBU_20_2.0'].iloc[-1] or preco >= res) and rsi > 65:
+        pontos = -1 # Venda
+    
+    return pontos, rsi, sup, res
+
+# --- SIDEBAR E PLACAR ---
 if 'wins' not in st.session_state: st.session_state.wins = 0
 if 'losses' not in st.session_state: st.session_state.losses = 0
 
-# --- FUNÇÕES DE APOIO ---
-def enviar_telegram(mensagem):
-    try:
-        token = st.secrets["TELEGRAM_TOKEN"]
-        chat_id = st.secrets["TELEGRAM_CHAT_ID"]
-        url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={mensagem}"
-        requests.get(url)
-    except:
-        pass
-
-def verificar_noticias():
-    tz_br = pytz.timezone('America/Sao_Paulo')
-    agora = datetime.now(tz_br)
-    bloqueios = [("09:00", "09:30"), ("10:30", "11:15"), ("15:30", "16:15")]
-    for inicio, fim in bloqueios:
-        h_ini = agora.replace(hour=int(inicio.split(':')[0]), minute=int(inicio.split(':')[1]))
-        h_fim = agora.replace(hour=int(fim.split(':')[0]), minute=int(fim.split(':')[1]))
-        if h_ini <= agora <= h_fim: return True, f"⚠️ MERCADO VOLÁTIL: Notícia às {inicio}"
-    return False, "✅ Mercado Técnico (Sem notícias de alto impacto)"
-
-def analisar_dados(df):
-    if df is None or len(df) < 30: return 0, 50, 0, 0
-    df['RSI'] = ta.rsi(df['Close'], length=14)
-    rsi = df['RSI'].iloc[-1]
-    bb = ta.bbands(df['Close'], length=20, std=2)
-    sup = df['Low'].rolling(window=20).min().iloc[-1]
-    res = df['High'].rolling(window=20).max().iloc[-1]
-    preco = df['Close'].iloc[-1]
-    
-    # Lógica de Pontuação (1=Alta, -1=Baixa)
-    pontos = 0
-    if (preco <= bb['BBL_20_2.0'].iloc[-1] or preco <= sup) and rsi < 35:
-        pontos = 1
-    elif (preco >= bb['BBU_20_2.0'].iloc[-1] or preco >= res) and rsi > 65:
-        pontos = -1
-    return pontos, rsi, sup, res
-
-# --- SIDEBAR ---
 st.sidebar.title("🎮 Quantum Control")
-par = st.sidebar.selectbox("Ativo:", ["EURUSD=X", "GBPUSD=X", "BTC-USD", "ETH-USD", "AUDUSD=X"])
-alerta_som = st.sidebar.toggle("Alerta Sonoro", value=True)
-
-st.sidebar.divider()
+par = st.sidebar.selectbox("Ativo:", ["BTC-USD", "ETH-USD", "EURUSD=X", "GBPUSD=X", "AUDUSD=X"])
 st.sidebar.subheader(f"🏆 Placar: {st.session_state.wins}W - {st.session_state.losses}L")
-c_w, c_l = st.sidebar.columns(2)
-if c_w.button("✅ WIN", use_container_width=True): st.session_state.wins += 1
-if c_l.button("❌ LOSS", use_container_width=True): st.session_state.losses += 1
-if st.sidebar.button("Resetar Placar"): st.session_state.wins = 0; st.session_state.losses = 0
 
-# --- TIMER DE VELA ---
-restante = 60 - datetime.now().second
-cor_t = "red" if restante <= 5 else "orange" if restante <= 10 else "white"
-st.sidebar.markdown(f"<div style='text-align:center; border:1px solid {cor_t}; border-radius:10px;'><h4>FECHAMENTO</h4><h1 style='color:{cor_t};'>{restante:02d}s</h1></div>", unsafe_allow_html=True)
+col_w, col_l = st.sidebar.columns(2)
+if col_w.button("✅ WIN"): st.session_state.wins += 1
+if col_l.button("❌ LOSS"): st.session_state.losses += 1
 
-# --- CABEÇALHO ---
+# Timer de Vela
+segundos_agora = datetime.now().second
+restante = 60 - segundos_agora
+st.sidebar.metric("Fechamento M1", f"{restante}s")
+
+# --- INTERFACE PRINCIPAL ---
 st.title("📊 QUANTUM BOT - Pro Analysis")
-em_risco, msg_noticia = verificar_noticias()
-if em_risco: st.error(msg_noticia)
-else: st.success(msg_noticia)
 
-# --- PROCESSAMENTO ---
-try:
-    df_m1 = yf.download(par, period="1d", interval="1m", progress=False)
-    df_m5 = yf.download(par, period="1d", interval="5m", progress=False)
+# Processamento de Dados
+df_m1 = buscar_dados_seguro(par, "1m")
+df_m5 = buscar_dados_seguro(par, "5m")
 
-    p_m1, rsi_m1, sup, res = analisar_dados(df_m1)
-    p_m5, _, _, _ = analisar_dados(df_m5)
+if df_m1 is not None and not df_m1.empty:
+    p_m1, rsi_val, sup_val, res_val = analisar_estatisticas(df_m1)
+    p_m5, _, _, _ = analisar_estatisticas(df_m5)
 
-    # Lógica de Confluência
-    sinal = "AGUARDANDO CONFLUÊNCIA..."
+    # Lógica de Confluência (Sinal)
+    sinal = "ANALISANDO MERCADO..."
     cor_box = "#1e2130"
-    trigger = False
-
+    
     if p_m1 == 1 and p_m5 == 1:
-        sinal, cor_box, trigger = "🔥 COMPRA FORTE (CALL)", "#004d26", True
+        sinal, cor_box = "🔥 COMPRA FORTE (CALL)", "#004d26"
     elif p_m1 == -1 and p_m5 == -1:
-        sinal, cor_box, trigger = "❄️ VENDA FORTE (PUT)", "#4d0000", True
+        sinal, cor_box = "❄️ VENDA FORTE (PUT)", "#4d0000"
 
     st.markdown(f"""<div class="status-box" style="background-color: {cor_box};">
                 <h1 style="color: white; margin:0;">{sinal}</h1></div>""", unsafe_allow_html=True)
 
-    if trigger and not em_risco:
-        if alerta_som: st.toast("Sinal Detectado!", icon="🔔")
-        if 'ultima_msg' not in st.session_state or st.session_state.ultima_msg != sinal:
-            enviar_telegram(f"🔔 QUANTUM BOT: {sinal} no par {par}")
-            st.session_state.ultima_msg = sinal
-        if restante <= 5: st.warning("🚨 PREPARAR CLIQUE NA QUOTEX!")
-
-    # Métricas
+    # Métricas e Gráfico
     m1, m2, m3 = st.columns(3)
-    m1.metric("Preço", f"{df_m1['Close'].iloc[-1]:.5f}")
-    m2.metric("RSI (14)", f"{rsi_m1:.2f}")
-    m3.metric("Zonas", f"S:{sup:.4f} | R:{res:.4f}")
+    m1.metric("Preço Atual", f"{df_m1['Close'].iloc[-1]:.5f}")
+    m2.metric("RSI (14)", f"{rsi_val:.2f}")
+    m3.metric("Resistência", f"{res_val:.5f}")
 
-    # Gráfico
-    fig = go.Figure(data=[go.Candlestick(x=df_m1.index, open=df_m1['Open'], high=df_m1['High'], low=df_m1['Low'], close=df_m1['Close'])])
-    fig.add_hline(y=sup, line_color="green", line_dash="dash")
-    fig.add_hline(y=res, line_color="red", line_dash="dash")
-    fig.update_layout(template="plotly_dark", height=450, margin=dict(l=10, r=10, t=10, b=10), xaxis_rangeslider_visible=False)
+    fig = go.Figure(data=[go.Candlestick(
+        x=df_m1.index, open=df_m1['Open'], high=df_m1['High'],
+        low=df_m1['Low'], close=df_m1['Close'], name="Candles"
+    )])
+    fig.add_hline(y=sup_val, line_color="green", line_dash="dash")
+    fig.add_hline(y=res_val, line_color="red", line_dash="dash")
+    fig.update_layout(template="plotly_dark", height=400, margin=dict(l=10, r=10, t=10, b=10), xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-except Exception as e:
-    st.info("Conectando aos servidores de mercado... Aguarde 10 segundos.")
-    time.sleep(1)
+else:
+    st.error("📡 Erro de conexão com o Yahoo Finance. O mercado pode estar fechado ou instável.")
+    if st.button("Tentar Novamente"):
+        st.rerun()
 
-st.caption("Quantum Bot v1.0 - Use com responsabilidade na Conta Demo.")
+st.caption("Aviso: Dados oficiais de Forex param no final de semana. Use pares de Cripto (BTC/ETH) para testar no sábado/domingo.")
