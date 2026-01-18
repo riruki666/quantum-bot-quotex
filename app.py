@@ -4,92 +4,95 @@ import pandas_ta as ta
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
-import requests
 
-# --- CONFIGURAÇÃO ---
-st.set_page_config(page_title="QUANTUM BOT PRO", layout="wide")
+st.set_page_config(page_title="QUANTUM PRECISION", layout="wide")
 
-# --- CSS ---
-st.markdown("<style>.stMetric {background-color: #1e2130; padding: 10px; border-radius: 10px;}</style>", unsafe_allow_html=True)
-
-# --- FUNÇÃO DE BUSCA (BLINDADA) ---
-@st.cache_data(ttl=15)
+@st.cache_data(ttl=10)
 def buscar_dados(ticker, intervalo):
     try:
         df = yf.download(ticker, period="2d", interval=intervalo, progress=False, threads=False)
-        
-        # Limpeza de MultiIndex (Causa do KeyError)
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
-        
-        # Garante que as colunas sejam strings simples
         df.columns = [str(col).capitalize() for col in df.columns]
-        
-        if df.empty or len(df) < 20:
-            return None
-        return df
+        return df if not df.empty and len(df) > 30 else None
     except:
         return None
 
-def analisar(df):
-    if df is None: return 0, 50, 0, 0
+def calcular_precisao(df):
+    if df is None: return 0, 50
     
-    try:
-        # Cálculo manual/seguro para evitar KeyError no pandas_ta
-        close = df['Close']
-        low = df['Low']
-        high = df['High']
-        
-        rsi = ta.rsi(close, length=14).iloc[-1]
-        bb = ta.bbands(close, length=20, std=2)
-        
-        # Nomes das colunas das bandas podem variar, pegamos pelo índice
-        bb_inf = bb.iloc[:, 0].iloc[-1] # Banda Inferior
-        bb_sup = bb.iloc[:, 2].iloc[-1] # Banda Superior
-        
-        sup = low.rolling(window=20).min().iloc[-1]
-        res = high.rolling(window=20).max().iloc[-1]
-        preco = close.iloc[-1]
-        
-        pontos = 0
-        if (preco <= bb_inf or preco <= sup) and rsi < 35: pontos = 1
-        elif (preco >= bb_sup or preco >= res) and rsi > 65: pontos = -1
-        
-        return pontos, rsi, sup, res
-    except:
-        return 0, 50, 0, 0
+    # Indicadores de Alta Precisão
+    close = df['Close'].astype(float)
+    rsi = ta.rsi(close, length=14).iloc[-1]
+    bb = ta.bbands(close, length=20, std=2.5) # Aumentado para 2.5 para pegar extremos
+    
+    # Níveis de Suporte/Resistência de Preço (Price Action)
+    sup = df['Low'].rolling(window=30).min().iloc[-1]
+    res = df['High'].rolling(window=30).max().iloc[-1]
+    preco_atual = close.iloc[-1]
+    
+    # Score de Confiança (0 a 100)
+    score = 0
+    tendencia = 0 # 1 para Call, -1 para Put
+    
+    # LÓGICA DE COMPRA (CALL) - FILTROS RÍGIDOS
+    if preco_atual <= bb.iloc[-1, 0] or preco_atual <= sup:
+        score += 40
+        if rsi <= 30: score += 40
+        if rsi <= 20: score += 20 # Exaustão Extrema
+        tendencia = 1
 
-# --- INTERFACE ---
-st.sidebar.title("🎮 Quantum Bot")
+    # LÓGICA DE VENDA (PUT) - FILTROS RÍGIDOS
+    elif preco_atual >= bb.iloc[-1, 2] or preco_atual >= res:
+        score += 40
+        if rsi >= 70: score += 40
+        if rsi >= 80: score += 20 # Exaustão Extrema
+        tendencia = -1
+        
+    return tendencia, score, rsi
+
+# --- UI ---
+st.title("🎯 Quantum Precision - Filtro de Exaustão")
 par = st.sidebar.selectbox("Ativo:", ["BTC-USD", "ETH-USD", "EURUSD=X", "GBPUSD=X"])
-
-st.title("📊 Painel de Análise")
 
 df_m1 = buscar_dados(par, "1m")
 df_m5 = buscar_dados(par, "5m")
 
-if df_m1 is not None and 'Close' in df_m1.columns:
-    p_m1, rsi_val, sup_val, res_val = analisar(df_m1)
-    p_m5, _, _, _ = analisar(df_m5)
-
-    # Sinal
-    sinal = "AGUARDANDO"
-    cor = "#1e2130"
-    if p_m1 == 1 and p_m5 == 1: sinal, cor = "🔥 COMPRA FORTE", "#004d26"
-    if p_m1 == -1 and p_m5 == -1: sinal, cor = "❄️ VENDA FORTE", "#4d0000"
-
-    st.markdown(f"<div style='background:{cor}; padding:20px; border-radius:10px; text-align:center;'><h1>{sinal}</h1></div>", unsafe_allow_html=True)
-
-    # Gráfico simples
-    fig = go.Figure(data=[go.Candlestick(x=df_m1.index, open=df_m1['Open'], high=df_m1['High'], low=df_m1['Low'], close=df_m1['Close'])])
-    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=400)
-    st.plotly_chart(fig, use_container_width=True)
+if df_m1 is not None and df_m5 is not None:
+    t1, s1, rsi1 = calcular_precisao(df_m1)
+    t5, s5, _ = calcular_precisao(df_m5)
     
-    col1, col2 = st.columns(2)
-    col1.metric("RSI", f"{rsi_val:.2f}")
-    col2.metric("Preço", f"{df_m1['Close'].iloc[-1]:.5f}")
-else:
-    st.warning("Aguardando dados... Se estiver no fim de semana, use BTC-USD.")
+    # CONFLUÊNCIA M1 + M5 (O filtro de precisão)
+    confianca_final = 0
+    decisao = "AGUARDANDO EXAUSTÃO"
+    cor = "#1e2130"
+    
+    if t1 == t5 and t1 != 0:
+        confianca_final = (s1 + s5) / 2
+        if confianca_final >= 80:
+            decisao = "🔥 ENTRADA ALTAMENTE CONFIAVEL"
+            cor = "#004d26" if t1 == 1 else "#4d0000"
+        elif confianca_final >= 50:
+            decisao = "⚠️ ENTRADA MODERADA"
+            cor = "#856404"
 
-if st.button("Atualizar"):
+    st.markdown(f"""<div style='background:{cor}; padding:30px; border-radius:15px; text-align:center; border: 2px solid white;'>
+                <h1 style='color:white;'>{decisao}</h1>
+                <h2 style='color:white;'>Confiança: {confianca_final:.0f}%</h2>
+                </div>""", unsafe_allow_html=True)
+
+    # Dashboard de Métricas
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Preço Atual", f"{df_m1['Close'].iloc[-1]:.5f}")
+    col2.metric("RSI M1", f"{rsi1:.2f}", delta="EXAUSTÃO" if rsi1 > 70 or rsi1 < 30 else None)
+    col3.metric("Tempo M1", f"{60 - datetime.now().second}s")
+
+    # Gráfico Visual
+    fig = go.Figure(data=[go.Candlestick(x=df_m1.index, open=df_m1['Open'], high=df_m1['High'], low=df_m1['Low'], close=df_m1['Close'])])
+    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450)
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Conectando aos servidores de precisão... Selecione BTC-USD para teste imediato.")
+
+if st.button("REESCANEAR MERCADO"):
     st.rerun()
