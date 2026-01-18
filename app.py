@@ -68,4 +68,34 @@ if df_m1 is not None and df_m5 is not None:
     # MÉTRICAS EM LINHA
     m1, m2, m3 = st.columns(3)
     preco_formatado = f"{df_m1['Close'].iloc[-1]:.5f}" if "USD=" in par else f"{df_m1['Close'].iloc[-1]:.2f}"
-    m1.metric("Preço", preco_formatado
+    m1.metric("Preço", preco_formatado)
+    
+    rsi_atual = ta.rsi(df_m1['Close'], length=14).iloc[-1]
+    m2.metric("Força (RSI)", f"{rsi_atual:.0f}%")
+    
+    tempo = 60 - datetime.now().second
+    m3.metric("Tempo Restante", f"{tempo}s")
+
+    # GRÁFICO LIMPO
+    fig = go.Figure(data=[go.Candlestick(
+        x=df_m1.index, open=df_m1['Open'], high=df_m1['High'], 
+        low=df_m1['Low'], close=df_m1['Close'],
+        increasing_line_color='#00c853', decreasing_line_color='#ff5252'
+    )])
+    fig.update_layout(
+        template="plotly_dark", 
+        xaxis_rangeslider_visible=False, 
+        height=350, 
+        paper_bgcolor='rgba(0,0,0,0)', 
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=0, r=0, b=0, t=0)
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+else:
+    st.info("Conectando aos servidores... (No final de semana, use BTC-USD)")
+
+# BOTÃO DE ATUALIZAÇÃO DISCRETO
+st.markdown("<br>", unsafe_allow_html=True)
+if st.button("🔄 ATUALIZAR DADOS", use_container_width=True):
+    st.rerun()
