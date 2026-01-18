@@ -1,0 +1,132 @@
+import streamlit as st
+import yfinance as yf
+import pandas_ta as ta
+import pandas as pd
+import plotly.graph_objects as go
+from datetime import datetime
+import pytz
+import requests
+import time
+
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="QUANTUM BOT - Alta Precisão", layout="wide")
+
+# --- CSS PARA VISUAL PREMIUM ---
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    .stMetric { background-color: #1e2130; padding: 15px; border-radius: 10px; border: 1px solid #31333f; }
+    .status-box { padding: 30px; border-radius: 15px; text-align: center; margin-bottom: 20px; border: 2px solid #31333f; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- INICIALIZAÇÃO DO PLACAR ---
+if 'wins' not in st.session_state: st.session_state.wins = 0
+if 'losses' not in st.session_state: st.session_state.losses = 0
+
+# --- FUNÇÕES DE APOIO ---
+def enviar_telegram(mensagem):
+    try:
+        token = st.secrets["TELEGRAM_TOKEN"]
+        chat_id = st.secrets["TELEGRAM_CHAT_ID"]
+        url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={mensagem}"
+        requests.get(url)
+    except:
+        pass
+
+def verificar_noticias():
+    tz_br = pytz.timezone('America/Sao_Paulo')
+    agora = datetime.now(tz_br)
+    bloqueios = [("09:00", "09:30"), ("10:30", "11:15"), ("15:30", "16:15")]
+    for inicio, fim in bloqueios:
+        h_ini = agora.replace(hour=int(inicio.split(':')[0]), minute=int(inicio.split(':')[1]))
+        h_fim = agora.replace(hour=int(fim.split(':')[0]), minute=int(fim.split(':')[1]))
+        if h_ini <= agora <= h_fim: return True, f"⚠️ MERCADO VOLÁTIL: Notícia às {inicio}"
+    return False, "✅ Mercado Técnico (Sem notícias de alto impacto)"
+
+def analisar_dados(df):
+    if df is None or len(df) < 30: return 0, 50, 0, 0
+    df['RSI'] = ta.rsi(df['Close'], length=14)
+    rsi = df['RSI'].iloc[-1]
+    bb = ta.bbands(df['Close'], length=20, std=2)
+    sup = df['Low'].rolling(window=20).min().iloc[-1]
+    res = df['High'].rolling(window=20).max().iloc[-1]
+    preco = df['Close'].iloc[-1]
+    
+    # Lógica de Pontuação (1=Alta, -1=Baixa)
+    pontos = 0
+    if (preco <= bb['BBL_20_2.0'].iloc[-1] or preco <= sup) and rsi < 35:
+        pontos = 1
+    elif (preco >= bb['BBU_20_2.0'].iloc[-1] or preco >= res) and rsi > 65:
+        pontos = -1
+    return pontos, rsi, sup, res
+
+# --- SIDEBAR ---
+st.sidebar.title("🎮 Quantum Control")
+par = st.sidebar.selectbox("Ativo:", ["EURUSD=X", "GBPUSD=X", "BTC-USD", "ETH-USD", "AUDUSD=X"])
+alerta_som = st.sidebar.toggle("Alerta Sonoro", value=True)
+
+st.sidebar.divider()
+st.sidebar.subheader(f"🏆 Placar: {st.session_state.wins}W - {st.session_state.losses}L")
+c_w, c_l = st.sidebar.columns(2)
+if c_w.button("✅ WIN", use_container_width=True): st.session_state.wins += 1
+if c_l.button("❌ LOSS", use_container_width=True): st.session_state.losses += 1
+if st.sidebar.button("Resetar Placar"): st.session_state.wins = 0; st.session_state.losses = 0
+
+# --- TIMER DE VELA ---
+restante = 60 - datetime.now().second
+cor_t = "red" if restante <= 5 else "orange" if restante <= 10 else "white"
+st.sidebar.markdown(f"<div style='text-align:center; border:1px solid {cor_t}; border-radius:10px;'><h4>FECHAMENTO</h4><h1 style='color:{cor_t};'>{restante:02d}s</h1></div>", unsafe_allow_html=True)
+
+# --- CABEÇALHO ---
+st.title("📊 QUANTUM BOT - Pro Analysis")
+em_risco, msg_noticia = verificar_noticias()
+if em_risco: st.error(msg_noticia)
+else: st.success(msg_noticia)
+
+# --- PROCESSAMENTO ---
+try:
+    df_m1 = yf.download(par, period="1d", interval="1m", progress=False)
+    df_m5 = yf.download(par, period="1d", interval="5m", progress=False)
+
+    p_m1, rsi_m1, sup, res = analisar_dados(df_m1)
+    p_m5, _, _, _ = analisar_dados(df_m5)
+
+    # Lógica de Confluência
+    sinal = "AGUARDANDO CONFLUÊNCIA..."
+    cor_box = "#1e2130"
+    trigger = False
+
+    if p_m1 == 1 and p_m5 == 1:
+        sinal, cor_box, trigger = "🔥 COMPRA FORTE (CALL)", "#004d26", True
+    elif p_m1 == -1 and p_m5 == -1:
+        sinal, cor_box, trigger = "❄️ VENDA FORTE (PUT)", "#4d0000", True
+
+    st.markdown(f"""<div class="status-box" style="background-color: {cor_box};">
+                <h1 style="color: white; margin:0;">{sinal}</h1></div>""", unsafe_allow_html=True)
+
+    if trigger and not em_risco:
+        if alerta_som: st.toast("Sinal Detectado!", icon="🔔")
+        if 'ultima_msg' not in st.session_state or st.session_state.ultima_msg != sinal:
+            enviar_telegram(f"🔔 QUANTUM BOT: {sinal} no par {par}")
+            st.session_state.ultima_msg = sinal
+        if restante <= 5: st.warning("🚨 PREPARAR CLIQUE NA QUOTEX!")
+
+    # Métricas
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Preço", f"{df_m1['Close'].iloc[-1]:.5f}")
+    m2.metric("RSI (14)", f"{rsi_m1:.2f}")
+    m3.metric("Zonas", f"S:{sup:.4f} | R:{res:.4f}")
+
+    # Gráfico
+    fig = go.Figure(data=[go.Candlestick(x=df_m1.index, open=df_m1['Open'], high=df_m1['High'], low=df_m1['Low'], close=df_m1['Close'])])
+    fig.add_hline(y=sup, line_color="green", line_dash="dash")
+    fig.add_hline(y=res, line_color="red", line_dash="dash")
+    fig.update_layout(template="plotly_dark", height=450, margin=dict(l=10, r=10, t=10, b=10), xaxis_rangeslider_visible=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+except Exception as e:
+    st.info("Conectando aos servidores de mercado... Aguarde 10 segundos.")
+    time.sleep(1)
+
+st.caption("Quantum Bot v1.0 - Use com responsabilidade na Conta Demo.")
