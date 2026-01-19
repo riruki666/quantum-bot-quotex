@@ -4,101 +4,84 @@ import pandas_ta as ta
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
-import base64
+import time
 
-# --- CONFIGURAÇÃO DA INTERFACE ---
-st.set_page_config(page_title="QUANTUM ELITE + SOM", layout="wide")
+# --- CONFIGURAÇÃO ---
+st.set_page_config(page_title="QUANTUM ELITE TIMER", layout="wide")
 
-# --- FUNÇÃO PARA TOCAR SOM ---
 def play_sound():
-    # Som de notificação curto em formato base64
     sound_file = "https://www.soundjay.com/buttons/sounds/button-3.mp3"
-    html_string = f"""
-        <audio autoplay>
-            <source src="{sound_file}" type="audio/mp3">
-        </audio>
-    """
-    st.components.v1.html(html_string, height=0)
+    st.components.v1.html(f'<audio autoplay><source src="{sound_file}"></audio>', height=0)
 
-# --- ESTILO VISUAL ---
+# --- ESTILO ---
 st.markdown("""
     <style>
     .main { background-color: #05070a; }
-    .stMetric { background-color: #11141c; padding: 20px; border-radius: 15px; border: 1px solid #1e222d; }
-    .signal-card { padding: 40px; border-radius: 20px; text-align: center; margin-bottom: 25px; }
-    .buy { background: linear-gradient(135deg, #00c853 0%, #b2ff59 100%); color: #000; box-shadow: 0 10px 30px rgba(0,200,83,0.3); }
-    .sell { background: linear-gradient(135deg, #d50000 0%, #ff5252 100%); color: #fff; box-shadow: 0 10px 30px rgba(213,0,0,0.3); }
+    .signal-card { padding: 30px; border-radius: 20px; text-align: center; margin-bottom: 10px; }
+    .buy { background: linear-gradient(135deg, #00c853 0%, #b2ff59 100%); color: #000; }
+    .sell { background: linear-gradient(135deg, #d50000 0%, #ff5252 100%); color: #fff; }
     .wait { background-color: #11141c; color: #4e5566; border: 1px dashed #2d3341; }
+    .timer-text { font-size: 50px; font-weight: bold; color: #ffffff; text-align: center; margin-top: -10px; }
+    .entry-alert { color: #ffeb3b; font-weight: bold; text-align: center; animation: blinker 1s linear infinite; }
+    @keyframes blinker { 50% { opacity: 0; } }
     </style>
     """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=10)
-def buscar_dados(ticker, intervalo):
+@st.cache_data(ttl=5)
+def buscar_dados(ticker):
     try:
-        df = yf.download(ticker, period="2d", interval=intervalo, progress=False, threads=False)
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
+        df = yf.download(ticker, period="1d", interval="1m", progress=False, threads=False)
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
         df.columns = [str(col).capitalize() for col in df.columns]
-        return df if not df.empty and len(df) > 25 else None
+        return df
     except: return None
 
-def calcular_sinal(df):
-    if df is None: return 0
-    close = df['Close'].astype(float)
-    rsi = ta.rsi(close, length=14).iloc[-1]
-    bb = ta.bbands(close, length=20, std=2.5)
-    preco = close.iloc[-1]
-    if preco <= bb.iloc[-1, 0] and rsi < 30: return 1
-    if preco >= bb.iloc[-1, 2] and rsi > 70: return -1
-    return 0
+# --- LÓGICA DE SINAL ---
+par = st.sidebar.selectbox("Ativo:", ["BTC-USD", "ETH-USD", "EURUSD=X", "GBPUSD=X"])
+df = buscar_dados(par)
 
-# --- LÓGICA DO APP ---
-st.sidebar.title("💎 QUANTUM ELITE")
-par = st.sidebar.selectbox("Escolha o Ativo:", ["BTC-USD", "ETH-USD", "EURUSD=X", "GBPUSD=X"])
-
-df_m1 = buscar_dados(par, "1m")
-df_m5 = buscar_dados(par, "5m")
-
-if df_m1 is not None and df_m5 is not None:
-    s1 = calcular_sinal(df_m1)
-    s5 = calcular_sinal(df_m5)
+if df is not None and not df.empty:
+    # Cálculos básicos
+    rsi = ta.rsi(df['Close'], length=14).iloc[-1]
+    bb = ta.bbands(df['Close'], length=20, std=2.5)
+    preco = df['Close'].iloc[-1]
     
-    # Estado para controlar o som (tocar apenas na mudança)
-    if 'last_signal' not in st.session_state:
-        st.session_state.last_signal = 0
+    sinal = 0
+    if preco <= bb.iloc[-1, 0] and rsi < 30: sinal = 1 # Compra
+    elif preco >= bb.iloc[-1, 2] and rsi > 70: sinal = -1 # Venda
 
-    # LÓGICA DE EXIBIÇÃO E SOM
-    current_signal = 0
-    if s1 == 1 and s5 == 1:
+    # --- CRONÔMETRO DE VELA ---
+    agora = datetime.now()
+    segundos_restantes = 60 - agora.second
+    
+    # Exibição do Cartão de Sinal
+    if sinal == 1:
         st.markdown('<div class="signal-card buy"><h1>⬆️ COMPRAR AGORA</h1></div>', unsafe_allow_html=True)
-        current_signal = 1
-    elif s1 == -1 and s5 == -1:
+    elif sinal == -1:
         st.markdown('<div class="signal-card sell"><h1>⬇️ VENDER AGORA</h1></div>', unsafe_allow_html=True)
-        current_signal = -1
     else:
-        st.markdown('<div class="signal-card wait"><h1>⌛ AGUARDANDO</h1></div>', unsafe_allow_html=True)
-        current_signal = 0
+        st.markdown('<div class="signal-card wait"><h1>⌛ AGUARDANDO EXAUSTÃO</h1></div>', unsafe_allow_html=True)
 
-    # Tocar som se o sinal mudou para Compra ou Venda
-    if current_signal != 0 and current_signal != st.session_state.last_signal:
-        play_sound()
-        st.session_state.last_signal = current_signal
-    elif current_signal == 0:
-        st.session_state.last_signal = 0
+    # Exibição do Cronômetro Grande
+    st.markdown(f'<div class="timer-text">{segundos_restantes}s</div>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center; color:#888;">Tempo para o fechamento da vela</p>', unsafe_allow_html=True)
 
-    # MÉTRICAS
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Preço", f"{df_m1['Close'].iloc[-1]:.5f}")
-    m2.metric("RSI", f"{ta.rsi(df_m1['Close'], length=14).iloc[-1]:.0f}%")
-    m3.metric("Vela", f"{60 - datetime.now().second}s")
+    # ALERTA DE ENTRADA (O Pulo do Gato)
+    if sinal != 0 and 2 <= segundos_restantes <= 7:
+        st.markdown('<div class="entry-alert">⚠️ PREPARE SUA ENTRADA! CLIQUE EM 2 SEGUNDOS!</div>', unsafe_allow_html=True)
+        if 'played' not in st.session_state or st.session_state.played != agora.minute:
+            play_sound()
+            st.session_state.played = agora.minute
 
-    # GRÁFICO
-    fig = go.Figure(data=[go.Candlestick(x=df_m1.index, open=df_m1['Open'], high=df_m1['High'], low=df_m1['Low'], close=df_m1['Close'])])
-    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=350, margin=dict(l=0,r=0,b=0,t=0))
+    # Gráfico e Métricas
+    c1, c2 = st.columns(2)
+    c1.metric("Preço", f"{preco:.5f}")
+    c2.metric("Força RSI", f"{rsi:.0f}%")
+
+    fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
+    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=300, margin=dict(l=0,r=0,b=0,t=0))
     st.plotly_chart(fig, use_container_width=True)
 
-else:
-    st.info("Conectando... Use BTC-USD no fim de semana.")
-
-if st.button("🔄 ATUALIZAR AGORA", use_container_width=True):
+    # Auto-refresh para o cronômetro rodar
+    time.sleep(1)
     st.rerun()
