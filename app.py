@@ -7,161 +7,106 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="STRANGER PROFITS - ABSOLUTO", page_icon="👹", layout="wide")
+st.set_page_config(page_title="STRANGER PROFITS - AI SCANNER", page_icon="🤖", layout="wide")
 
-# --- ESTILO CSS PARA NITIDEZ E TEMA DARK ---
+# --- ESTILO CSS PROFISSIONAL ---
 st.markdown("""
     <style>
-    .stApp { background-color: #000000 !important; }
-    
+    .stApp { background-color: #050505 !important; }
     .main-title {
-        color: #ff0000;
-        font-weight: 900;
-        font-size: 55px;
-        text-align: center;
-        text-shadow: 2px 2px 0px #ffffff;
+        color: #ff0000; font-weight: 900; font-size: 50px;
+        text-align: center; text-shadow: 2px 2px 0px #ffffff;
         margin-top: -50px;
-        letter-spacing: -2px;
     }
-
+    .scanner-card {
+        background: #111; border: 1px solid #333;
+        border-radius: 10px; padding: 15px; margin-bottom: 10px;
+    }
+    .status-buy { color: #00ff00; font-weight: bold; }
+    .status-sell { color: #ff0000; font-weight: bold; }
     .timer-display {
-        font-size: 45px;
-        font-weight: 900;
-        text-align: center;
-        padding: 15px;
-        background: #111;
-        border-radius: 15px;
-        border: 2px solid #ff0000;
-        margin-bottom: 20px;
-        color: #00ff00;
-    }
-
-    .signal-card {
-        padding: 40px;
-        border-radius: 25px;
-        text-align: center;
-        font-size: 50px;
-        font-weight: 900;
-        border: 6px solid #fff;
-        text-transform: uppercase;
-    }
-
-    /* Nitidez das Métricas */
-    [data-testid="stMetricValue"] { 
-        font-size: 40px !important; 
-        font-weight: 900 !important; 
-        color: #ffffff !important; 
-    }
-    
-    /* Botão Quotex */
-    .stButton>button {
-        background: linear-gradient(90deg, #ff0000 0%, #8b0000 100%) !important;
-        color: white !important;
-        font-weight: 900 !important;
-        font-size: 24px !important;
-        border-radius: 10px !important;
-        height: 70px !important;
-        border: 2px solid #fff !important;
+        font-size: 35px; font-weight: 900; text-align: center;
+        color: #ffcc00; background: #1a1a1a; padding: 10px;
+        border-radius: 10px; border: 2px solid #333;
     }
     </style>
-    
-    <h1 class="main-title">STRANGER PROFITS</h1>
-    
+    <h1 class="main-title">STRANGER AI SCANNER</h1>
     <iframe src="https://www.youtube.com/embed/Av1DFgWLR0E?autoplay=1&loop=1&playlist=Av1DFgWLR0E" 
             width="0" height="0" frameborder="0" allow="autoplay"></iframe>
     """, unsafe_allow_html=True)
 
-# --- MENU LATERAL: TODOS OS ATIVOS ---
-st.sidebar.title("💎 TERMINAL DE ATIVOS")
-categoria = st.sidebar.radio("Escolha o Mercado:", ["Ações", "Criptomoedas", "Forex", "Commodities"])
-
-ativos_db = {
-    "Ações": {
-        "NVIDIA": "NVDA", "Tesla": "TSLA", "Apple": "AAPL", "Amazon": "AMZN", 
-        "Netflix": "NFLX", "Microsoft": "MSFT", "Disney": "DIS", "McDonalds": "MCD"
-    },
-    "Criptomoedas": {
-        "Bitcoin": "BTC-USD", "Ethereum": "ETH-USD", "Solana": "SOL-USD", 
-        "XRP": "XRP-USD", "Cardano": "ADA-USD", "Dogecoin": "DOGE-USD"
-    },
-    "Forex": {
-        "EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X", 
-        "AUD/USD": "AUDUSD=X", "USD/CAD": "CAD=X", "EUR/GBP": "EURGBP=X"
-    },
-    "Commodities": {
-        "Ouro": "GC=F", "Petróleo": "CL=F", "Prata": "SI=F", "Gás Natural": "NG=F"
-    }
+# --- BANCO DE DADOS DE VARREDURA ---
+watchlist = {
+    "EURUSD=X": "EUR/USD", "GBPUSD=X": "GBP/USD", "JPY=X": "USD/JPY",
+    "BTC-USD": "Bitcoin", "ETH-USD": "Ethereum", "SOL-USD": "Solana",
+    "NVDA": "NVIDIA", "TSLA": "Tesla", "AAPL": "Apple", "GC=F": "Ouro"
 }
 
-nome_ativo = st.sidebar.selectbox("Selecione o Alvo:", list(ativos_db[categoria].keys()))
-ticker = ativos_db[categoria][nome_ativo]
+# --- FUNÇÃO INTELIGENTE DE SCANNER ---
+def scanner_mercado():
+    oportunidades = []
+    for ticker, nome in watchlist.items():
+        try:
+            df = yf.download(ticker, period="1d", interval="1m", progress=False)
+            if df.empty: continue
+            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+            
+            rsi = ta.rsi(df['Close'], length=14).iloc[-1]
+            bb = ta.bbands(df['Close'], length=20, std=2.5)
+            preco = df['Close'].iloc[-1]
+            
+            # Lógica de IA: Detectar Extremos
+            if rsi <= 32 and preco <= bb.iloc[-1, 0]:
+                oportunidades.append({"ativo": nome, "ticker": ticker, "tipo": "COMPRA (BAIXA)", "forca": rsi})
+            elif rsi >= 68 and preco >= bb.iloc[-1, 2]:
+                oportunidades.append({"ativo": nome, "ticker": ticker, "tipo": "VENDA (ALTA)", "forca": rsi})
+        except: continue
+    return oportunidades
 
-# --- CRONÔMETRO DE VELA (M1) ---
-segundos = 60 - datetime.now().second
-cor_timer = "#00ff00" if segundos > 10 else "#ff0000"
-st.markdown(f'<div class="timer-display" style="color:{cor_timer}; border-color:{cor_timer};">⏳ FECHAMENTO: {segundos}s</div>', unsafe_allow_html=True)
+# --- INTERFACE ---
+col_L, col_R = st.columns([1, 3])
 
-# --- FUNÇÃO DE DADOS ROBUSTA ---
-@st.cache_data(ttl=1)
-def get_market_data(t):
-    try:
-        data = yf.download(t, period="1d", interval="1m", progress=False)
-        if data.empty: return None
-        # Correção para o novo formato do Yahoo Finance (MultiIndex)
-        if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(0)
-        return data.dropna()
-    except Exception as e:
-        return None
-
-df = get_market_data(ticker)
-
-if df is not None and len(df) > 25:
-    # --- CÁLCULOS TÉCNICOS ---
-    rsi = ta.rsi(df['Close'], length=14).iloc[-1]
-    bb = ta.bbands(df['Close'], length=20, std=2.5) # Desvio 2.5 para maior assertividade
-    preco_atual = df['Close'].iloc[-1]
-    banda_inf = bb.iloc[-1, 0]
-    banda_sup = bb.iloc[-1, 2]
+with col_L:
+    st.markdown("### 🔍 Radar de Sinais")
+    if st.button("🔄 FORÇAR SCANNER"):
+        st.cache_data.clear()
     
-    # Gráfico Estilo Profissional
+    lista_ops = scanner_mercado()
     
-    fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=400, 
-                      paper_bgcolor='#000', plot_bgcolor='#000', margin=dict(l=0,r=0,t=0,b=0))
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Painel de Dados nítidos
-    c1, c2 = st.columns(2)
-    c1.metric("VALOR ATUAL", f"{preco_atual:.4f}")
-    c2.metric("FORÇA RSI", f"{rsi:.1f}%")
-
-    # --- LÓGICA DE ASSERTIVIDADE ABSOLUTA ---
-    # SINAL DE COMPRA: Preço tocou/furou banda inferior + RSI abaixo de 30
-    if rsi <= 30 and preco_atual <= banda_inf:
-        st.markdown('<div class="signal-card" style="background:#2eb85c;">🚀 COMPRA (CALL)</div>', unsafe_allow_html=True)
-        # SINO DE ALERTA
-        st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
-    
-    # SINAL DE VENDA: Preço tocou/furou banda superior + RSI acima de 70
-    elif rsi >= 70 and preco_atual >= banda_sup:
-        st.markdown('<div class="signal-card" style="background:#e55353;">🔥 VENDA (PUT)</div>', unsafe_allow_html=True)
-        # SINO DE ALERTA
-        st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
-    
+    if not lista_ops:
+        st.info("Varrendo mercado... Nenhuma exaustão detectada no momento.")
     else:
-        st.markdown('<div class="signal-card" style="background:#111; color:#333; border-color:#222;">AGUARDANDO OPORTUNIDADE...</div>', unsafe_allow_html=True)
+        for op in lista_ops:
+            cor = "status-buy" if "COMPRA" in op['tipo'] else "status-sell"
+            st.markdown(f"""
+            <div class="scanner-card">
+                <b>{op['ativo']}</b><br>
+                Status: <span class="{cor}">{op['tipo']}</span><br>
+                RSI: {op['forca']:.1f}
+            </div>
+            """, unsafe_allow_html=True)
 
-    # --- LINK DIRETO QUOTEX ---
-    # Limpa o ticker para a URL (ex: EURUSD=X vira EURUSD)
-    ativo_limpo = ticker.replace("=X", "").replace("-USD", "").replace("=F", "").upper()
-    st.write("---")
-    st.link_button(f"👉 ABRIR {nome_ativo} NA QUOTEX", f"https://qxbroker.com/pt/trade/{ativo_limpo}", use_container_width=True)
+with col_R:
+    # Seleção do Ativo Principal para Análise Gráfica
+    ativo_selecionado = st.selectbox("Analise um ativo do Scanner ou Watchlist:", list(watchlist.values()))
+    ticker_final = [k for k, v in watchlist.items() if v == ativo_selecionado][0]
+    
+    # Cronômetro
+    segundos = 60 - datetime.now().second
+    st.markdown(f'<div class="timer-display">⏳ VELA M1: {segundos}s</div>', unsafe_allow_html=True)
+    
+    # Carregamento do Gráfico
+    df_main = yf.download(ticker_final, period="1d", interval="1m", progress=False)
+    if not df_main.empty:
+        if isinstance(df_main.columns, pd.MultiIndex): df_main.columns = df_main.columns.get_level_values(0)
+        
+        fig = go.Figure(data=[go.Candlestick(x=df_main.index, open=df_main['Open'], high=df_main['High'], low=df_main['Low'], close=df_main['Close'])])
+        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450, margin=dict(l=0,r=0,t=0,b=0))
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Link Dinâmico Quotex
+        ativo_limpo = ticker_final.replace("=X", "").replace("-USD", "").replace("=F", "").upper()
+        st.link_button(f"🔥 ENTRAR AGORA EM {ativo_selecionado} NA QUOTEX", f"https://qxbroker.com/pt/trade/{ativo_limpo}", use_container_width=True)
 
-    # Refresh para o cronômetro
-    time.sleep(1)
-    st.rerun()
-else:
-    st.warning("Portal instável ou mercado fechado. Reconectando...")
-    time.sleep(5)
-    st.rerun()
+time.sleep(1)
+st.rerun()
