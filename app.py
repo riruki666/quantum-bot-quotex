@@ -27,61 +27,82 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- BUSCA DE DADOS COM LIMPEZA PROFUNDA ---
 @st.cache_data(ttl=5)
 def buscar_dados(ticker):
     try:
+        # Baixa os dados limpando o formato do Yahoo Finance
         df = yf.download(ticker, period="1d", interval="1m", progress=False, threads=False)
-        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-        df.columns = [str(col).capitalize() for col in df.columns]
-        return df
-    except: return None
+        
+        if df.empty: return None
+        
+        # Correção do Erro: Remove níveis extras de colunas (MultiIndex)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+            
+        # Força os nomes das colunas e converte para float para evitar AttributeError
+        df = df[['Open', 'High', 'Low', 'Close']].copy()
+        for col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+        return df.dropna()
+    except Exception as e:
+        return None
 
-# --- LÓGICA DE SINAL ---
+# --- LÓGICA DO APP ---
 par = st.sidebar.selectbox("Ativo:", ["BTC-USD", "ETH-USD", "EURUSD=X", "GBPUSD=X"])
 df = buscar_dados(par)
 
-if df is not None and not df.empty:
-    # Cálculos básicos
-    rsi = ta.rsi(df['Close'], length=14).iloc[-1]
-    bb = ta.bbands(df['Close'], length=20, std=2.5)
-    preco = df['Close'].iloc[-1]
-    
-    sinal = 0
-    if preco <= bb.iloc[-1, 0] and rsi < 30: sinal = 1 # Compra
-    elif preco >= bb.iloc[-1, 2] and rsi > 70: sinal = -1 # Venda
+if df is not None and len(df) > 14:
+    # Cálculos usando nomes de colunas limpos
+    try:
+        rsi_series = ta.rsi(df['Close'], length=14)
+        rsi = float(rsi_series.iloc[-1])
+        
+        bb = ta.bbands(df['Close'], length=20, std=2.5)
+        # Pega as bandas pela posição para não errar o nome da coluna
+        banda_inf = float(bb.iloc[-1, 0]) 
+        banda_sup = float(bb.iloc[-1, 2])
+        
+        preco = float(df['Close'].iloc[-1])
+        
+        sinal = 0
+        if preco <= banda_inf and rsi < 30: sinal = 1 
+        elif preco >= banda_sup and rsi > 70: sinal = -1
 
-    # --- CRONÔMETRO DE VELA ---
-    agora = datetime.now()
-    segundos_restantes = 60 - agora.second
-    
-    # Exibição do Cartão de Sinal
-    if sinal == 1:
-        st.markdown('<div class="signal-card buy"><h1>⬆️ COMPRAR AGORA</h1></div>', unsafe_allow_html=True)
-    elif sinal == -1:
-        st.markdown('<div class="signal-card sell"><h1>⬇️ VENDER AGORA</h1></div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="signal-card wait"><h1>⌛ AGUARDANDO EXAUSTÃO</h1></div>', unsafe_allow_html=True)
+        # --- EXIBIÇÃO ---
+        agora = datetime.now()
+        segundos_restantes = 60 - agora.second
+        
+        if sinal == 1:
+            st.markdown('<div class="signal-card buy"><h1>⬆️ COMPRAR AGORA</h1></div>', unsafe_allow_html=True)
+        elif sinal == -1:
+            st.markdown('<div class="signal-card sell"><h1>⬇️ VENDER AGORA</h1></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="signal-card wait"><h1>⌛ AGUARDANDO EXAUSTÃO</h1></div>', unsafe_allow_html=True)
 
-    # Exibição do Cronômetro Grande
-    st.markdown(f'<div class="timer-text">{segundos_restantes}s</div>', unsafe_allow_html=True)
-    st.markdown('<p style="text-align:center; color:#888;">Tempo para o fechamento da vela</p>', unsafe_allow_html=True)
+        st.markdown(f'<div class="timer-text">{segundos_restantes}s</div>', unsafe_allow_html=True)
 
-    # ALERTA DE ENTRADA (O Pulo do Gato)
-    if sinal != 0 and 2 <= segundos_restantes <= 7:
-        st.markdown('<div class="entry-alert">⚠️ PREPARE SUA ENTRADA! CLIQUE EM 2 SEGUNDOS!</div>', unsafe_allow_html=True)
-        if 'played' not in st.session_state or st.session_state.played != agora.minute:
+        if sinal != 0 and 2 <= segundos_restantes <= 8:
+            st.markdown('<div class="entry-alert">⚠️ PREPARE SUA ENTRADA!</div>', unsafe_allow_html=True)
             play_sound()
-            st.session_state.played = agora.minute
 
-    # Gráfico e Métricas
-    c1, c2 = st.columns(2)
-    c1.metric("Preço", f"{preco:.5f}")
-    c2.metric("Força RSI", f"{rsi:.0f}%")
+        # Dashboard
+        c1, c2 = st.columns(2)
+        c1.metric("Preço", f"{preco:.5f}")
+        c2.metric("Força RSI", f"{rsi:.0f}%")
 
-    fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=300, margin=dict(l=0,r=0,b=0,t=0))
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Auto-refresh para o cronômetro rodar
+        fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
+        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=300, margin=dict(l=0,r=0,b=0,t=0))
+        st.plotly_chart(fig, use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"Erro no processamento técnico. Tente outro ativo.")
+        
+    # Auto-refresh
     time.sleep(1)
+    st.rerun()
+else:
+    st.info("📡 Sincronizando dados... No final de semana, use BTC-USD.")
+    time.sleep(2)
     st.rerun()
