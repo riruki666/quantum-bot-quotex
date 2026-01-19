@@ -7,7 +7,7 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO ---
-st.set_page_config(page_title="QUANTUM MULTI-ATIVOS", layout="wide")
+st.set_page_config(page_title="QUANTUM ELITE PRO", layout="wide")
 
 def play_sound():
     sound_file = "https://www.soundjay.com/buttons/sounds/button-3.mp3"
@@ -41,34 +41,40 @@ def buscar_dados(ticker):
         return df.dropna()
     except: return None
 
-# --- SIDEBAR COM TODOS OS ATIVOS ---
+# --- SIDEBAR ATUALIZADA COM MCDONALDS E MAIS ---
 st.sidebar.title("💎 MENU DE ATIVOS")
+categoria = st.sidebar.radio("Filtrar por:", ["Ações (Stocks)", "Criptomoedas", "Forex (Moedas)", "Commodities"])
 
-# Organizado por categorias para facilitar
-categoria = st.sidebar.radio("Filtrar por:", ["Forex (Moedas)", "Criptomoedas", "Commodities"])
-
-if categoria == "Forex (Moedas)":
+if categoria == "Ações (Stocks)":
     lista_ativos = {
-        "EUR/USD": "EURUSD=X",
-        "GBP/USD": "GBPUSD=X",
-        "USD/JPY": "JPY=X",
-        "AUD/USD": "AUDUSD=X",
-        "USD/CAD": "CAD=X",
-        "EUR/GBP": "EURGBP=X"
+        "McDonald's": "MCD",
+        "Coca-Cola": "KO",
+        "Amazon": "AMZN",
+        "Apple": "AAPL",
+        "Tesla": "TSLA",
+        "NVIDIA": "NVDA",
+        "Netflix": "NFLX",
+        "Disney": "DIS"
     }
 elif categoria == "Criptomoedas":
     lista_ativos = {
         "Bitcoin": "BTC-USD",
         "Ethereum": "ETH-USD",
         "Solana": "SOL-USD",
-        "Binance Coin": "BNB-USD",
         "Ripple (XRP)": "XRP-USD"
     }
-else: # Commodities
+elif categoria == "Forex (Moedas)":
+    lista_ativos = {
+        "EUR/USD": "EURUSD=X",
+        "GBP/USD": "GBPUSD=X",
+        "USD/JPY": "JPY=X",
+        "AUD/USD": "AUDUSD=X"
+    }
+else:
     lista_ativos = {
         "Ouro (Gold)": "GC=F",
         "Prata (Silver)": "SI=F",
-        "Petróleo (Oil)": "CL=F"
+        "Petróleo": "CL=F"
     }
 
 nome_exibicao = st.sidebar.selectbox("Selecione o Ativo:", list(lista_ativos.keys()))
@@ -106,9 +112,9 @@ if df is not None and len(df) > 14:
             st.markdown('<div class="entry-alert">⚠️ PREPARE SUA ENTRADA!</div>', unsafe_allow_html=True)
             play_sound()
 
-        # Gráfico e Métricas
+        # Dashboard e Gráfico
         c1, c2 = st.columns(2)
-        c1.metric("Preço Atual", f"{preco:.5f}")
+        c1.metric("Preço Atual", f"{preco:.2f}")
         c2.metric("Força RSI", f"{rsi:.0f}%")
 
         fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
@@ -120,6 +126,6 @@ if df is not None and len(df) > 14:
     time.sleep(1)
     st.rerun()
 else:
-    st.info(f"Sincronizando {nome_exibicao}... Verifique se o mercado está aberto.")
+    st.info(f"Sincronizando {nome_exibicao}... Verifique o horário do mercado.")
     time.sleep(2)
     st.rerun()
