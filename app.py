@@ -14,10 +14,8 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-    /* Fundo Escuro da Imagem */
     .stApp { background-color: #111217 !important; }
 
-    /* Banner Superior */
     .header-banner {
         background: linear-gradient(180deg, #4b0000 0%, #000000 100%);
         padding: 20px;
@@ -34,29 +32,27 @@ st.markdown("""
         margin-bottom: 10px;
     }
 
-    /* Animação dos Personagens Reais */
+    /* Animação com links de imagens ultra-estáveis */
     .track {
-        width: 100%; height: 100px; position: relative; overflow: hidden;
-        background: rgba(0,0,0,0.5); border-radius: 10px;
+        width: 100%; height: 110px; position: relative; overflow: hidden;
+        background: rgba(255,0,0,0.05); border-radius: 10px;
     }
     .party {
-        position: absolute; display: flex; gap: 30px; align-items: center;
-        animation: walk 15s linear infinite; bottom: 5px;
+        position: absolute; display: flex; gap: 35px; align-items: center;
+        animation: walk 18s linear infinite; bottom: 5px;
     }
-    .char { width: 70px; height: 90px; object-fit: contain; }
+    .char { width: 75px; height: 100px; object-fit: contain; filter: drop-shadow(0 0 5px #fff); }
 
     @keyframes walk {
-        from { left: -500px; }
+        from { left: -600px; }
         to { left: 100%; }
     }
 
-    /* Cards de Gráfico */
     .chart-container {
         background-color: #1a1c24; border: 1px solid #363a45;
         border-radius: 12px; padding: 15px; margin: 10px 0;
     }
 
-    /* Botões de Sinal Iguais à Foto */
     .sig-row { display: flex; gap: 20px; margin-top: 15px; }
     .sig-card {
         flex: 1; padding: 25px; border-radius: 15px; text-align: center;
@@ -65,7 +61,6 @@ st.markdown("""
     .buy { background-color: #2eb85c; color: white; box-shadow: 0 0 20px #2eb85c; }
     .sell { background-color: #e55353; color: white; box-shadow: 0 0 20px #e55353; }
     
-    /* Sidebar */
     [data-testid="stSidebar"] { background-color: #0d0e12 !important; border-right: 1px solid #333; }
     </style>
     
@@ -73,11 +68,11 @@ st.markdown("""
         <h1>STRANGER PROFITS</h1>
         <div class="track">
             <div class="party">
-                <img class="char" src="https://www.pngplay.com/wp-content/uploads/12/Stranger-Things-Eleven-PNG-Clipart-Background.png">
-                <img class="char" src="https://images.ctfassets.net/lp986m4p6pvl/5Yv1PzPZ9YQW8E8W8Y6W4W/d9f9c8f9f9f9f9f9f9f9f9f9f9f9f9f9/ST4_Mike_Poster.png" style="width:60px;">
-                <img class="char" src="https://images.ctfassets.net/lp986m4p6pvl/2Yv1PzPZ9YQW8E8W8Y6W4W/d9f9c8f9f9f9f9f9f9f9f9f9f9f9f9f9/ST4_Dustin_Poster.png" style="width:60px;">
-                <img class="char" src="https://images.ctfassets.net/lp986m4p6pvl/3Yv1PzPZ9YQW8E8W8Y6W4W/d9f9c8f9f9f9f9f9f9f9f9f9f9f9f9f9/ST4_Lucas_Poster.png" style="width:60px;">
-                <span style="font-size:60px;">👹</span>
+                <img class="char" src="https://www.nicepng.com/png/full/258-2581699_stranger-things-eleven-png.png">
+                <img class="char" src="https://www.nicepng.com/png/full/966-9665672_mike-wheeler-stranger-things.png">
+                <img class="char" src="https://www.nicepng.com/png/full/966-9665768_dustin-henderson-stranger-things.png">
+                <img class="char" src="https://www.nicepng.com/png/full/966-9666014_lucas-sinclair-stranger-things.png">
+                <span style="font-size:70px;">👹</span>
             </div>
         </div>
     </div>
@@ -125,13 +120,7 @@ if df is not None:
     st.plotly_chart(fig, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Métricas
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Preço Atual", f"{preco:.2f}")
-    c2.metric("Força RSI", f"{rsi:.1f}")
-    c3.metric("Atualização", f"{datetime.now().second}s")
-
-    # Sinais (Conforme a imagem)
+    # Botões de Sinal
     st.markdown('<div class="sig-row">', unsafe_allow_html=True)
     col_buy, col_sell = st.columns(2)
     with col_buy:
@@ -148,8 +137,8 @@ if df is not None:
             </div>""", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Som de Alerta (Relógio do Vecna)
-    if rsi < 30 or rsi > 70:
+    # Som de Alerta
+    if rsi < 35 or rsi > 65:
         st.markdown(f'<audio autoplay><source src="https://www.myinstants.com/media/sounds/vecna-clock-sound-effect.mp3"></audio>', unsafe_allow_html=True)
 
     time.sleep(1)
