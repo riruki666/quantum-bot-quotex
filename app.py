@@ -7,107 +7,115 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="STRANGER PROFITS - SNIPER MODE", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="STRANGER AI - PREDADOR M1", page_icon="🎯", layout="wide")
 
-# --- CSS: DESIGN MILITAR DE ALTA PRECISÃO ---
+# --- CSS: INTERFACE PROFISSIONAL ---
 st.markdown("""
     <style>
-    .stApp { background-color: #050505 !important; }
+    .stApp { background-color: #020202 !important; }
     .main-title {
-        color: #ff0000; font-weight: 900; font-size: 55px;
-        text-align: center; text-shadow: 0 0 20px #ff0000;
+        color: #ff0000; font-weight: 900; font-size: 50px;
+        text-align: center; text-shadow: 0 0 15px #ff0000;
         margin-top: -60px;
     }
-    .sniper-box {
-        background: rgba(255, 0, 0, 0.1); border: 2px solid #ff0000;
-        padding: 20px; border-radius: 15px; text-align: center;
+    .status-panel {
+        padding: 20px; border-radius: 15px; border: 2px solid #333;
+        text-align: center; margin-bottom: 10px;
     }
-    .timer-sniper {
-        font-size: 60px; font-weight: 900; color: #00ff00;
-        text-shadow: 0 0 15px #00ff00; text-align: center;
+    .timer-m1 {
+        font-size: 65px; font-weight: 900; color: #00ff00;
+        text-align: center; background: #111; border-radius: 20px;
     }
-    .metric-card { background: #111; border-radius: 10px; padding: 15px; border: 1px solid #333; }
+    .meta-msg { font-size: 22px; font-weight: 800; text-align: center; padding: 10px; border-radius: 10px; }
     </style>
-    <h1 class="main-title">STRANGER SNIPER AI</h1>
-    <iframe src="https://www.youtube.com/embed/Av1DFgWLR0E?autoplay=1&loop=1&playlist=Av1DFgWLR0E" 
-            width="0" height="0" frameborder="0" allow="autoplay"></iframe>
+    <h1 class="main-title">STRANGER PREDADOR M1</h1>
+    <audio autoplay loop><source src="https://www.myinstants.com/media/sounds/stranger-things-theme-song-hd.mp3"></audio>
     """, unsafe_allow_html=True)
 
-# --- CONFIGURAÇÃO DE ATIVOS SNIPER ---
-ativos_sniper = {"EUR/USD": "EURUSD=X", "USD/BRL": "BRL=X", "BTC/USD": "BTC-USD", "GOLD": "GC=F"}
+# --- SISTEMA DE GESTÃO DE GANHOS (STOP-GAIN/LOSS) ---
+if 'saldo_atual' not in st.session_state: st.session_state.saldo_atual = 0.0
 
-if 'win_rate' not in st.session_state: st.session_state.win_rate = {"wins": 0, "total": 0}
-
-# --- MOTOR DE CONFLUÊNCIA QUÁDRUPLA ---
-def scanner_sniper():
-    oportunidades = []
-    for nome, ticker in ativos_sniper.items():
-        try:
-            d = yf.download(ticker, period="1d", interval="1m", progress=False)
-            if d.empty: continue
-            if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
-            
-            # INDICADORES FORÇADOS
-            rsi_fast = ta.rsi(d['Close'], length=2).iloc[-1] # RSI Ultra-rápido
-            stoch = ta.stoch(d['High'], d['Low'], d['Close'], k=5, d=3).iloc[-1]
-            bb = ta.bbands(d['Close'], length=20, std=3.0) # Desvio 3.0 (Exaustão Máxima)
-            preco = d['Close'].iloc[-1]
-            
-            # CONDIÇÃO SNIPER (100% CONFLUÊNCIA)
-            # Compra: RSI < 10 + Stochastic < 20 + Preço < Banda Inferior 3.0
-            if rsi_fast < 10 and stoch[0] < 20 and preco <= bb.iloc[-1, 0]:
-                oportunidades.append({"nome": nome, "tipo": "CALL (COMPRA)", "cor": "#00ff00", "p": preco})
-            # Venda: RSI > 90 + Stochastic > 80 + Preço > Banda Superior 3.0
-            elif rsi_fast > 90 and stoch[0] > 80 and preco >= bb.iloc[-1, 2]:
-                oportunidades.append({"nome": nome, "tipo": "PUT (VENDA)", "cor": "#ff0000", "p": preco})
-        except: continue
-    return oportunidades
-
-# --- COLUNAS ---
-col_stats, col_viz = st.columns([1, 2.5])
-
-with col_stats:
-    st.markdown("### 🎯 RADAR SNIPER")
-    sinais = scanner_sniper()
+with st.sidebar:
+    st.header("💰 GESTÃO DE BANCA")
+    banca_inicial = st.number_input("Banca Inicial ($):", value=100.0)
+    meta_diaria = st.number_input("Meta de Ganho (Stop Gain $):", value=20.0)
+    limite_perda = st.number_input("Limite de Perda (Stop Loss $):", value=10.0)
     
-    if not sinais:
-        st.write("🔎 Varrendo mercado por exaustão extrema...")
+    lucro_sessao = st.session_state.saldo_atual
+    progresso = (lucro_sessao / meta_diaria) if lucro_sessao > 0 else 0.0
+    
+    st.divider()
+    st.metric("LUCRO NA SESSÃO", f"$ {lucro_sessao:.2f}", delta=f"{lucro_sessao:.2f}")
+    
+    if lucro_sessao >= meta_diaria:
+        st.markdown("<div class='meta-msg' style='background: #2eb85c; color: white;'>✅ META BATIDA! PARE AGORA!</div>", unsafe_allow_html=True)
+        st.balloons()
+    elif lucro_sessao <= -limite_perda:
+        st.markdown("<div class='meta-msg' style='background: #e55353; color: white;'>❌ STOP LOSS ATINGIDO! VOLTE AMANHÃ!</div>", unsafe_allow_html=True)
     else:
-        for s in sinais:
-            st.markdown(f"""
-            <div class="sniper-box" style="border-color:{s['cor']};">
-                <h2 style="color:{s['cor']};">{s['tipo']}</h2>
-                <h1 style="color:white;">{s['nome']}</h1>
-                <p>EXECUÇÃO IMEDIATA</p>
+        st.markdown("<div class='meta-msg' style='background: #333; color: #ccc;'>Operando em Busca da Meta...</div>", unsafe_allow_html=True)
+
+# --- ANALISADOR DE VELAS (PRICE ACTION) ---
+def analisar_velas_sniper(df):
+    ultima = df.iloc[-1]
+    penultima = df.iloc[-2]
+    
+    # Detecção de Pavio de Exaustão (Rejeição de Preço)
+    corpo = abs(ultima['Close'] - ultima['Open'])
+    pavio_superior = ultima['High'] - max(ultima['Open'], ultima['Close'])
+    pavio_inferior = min(ultima['Open'], ultima['Close']) - ultima['Low']
+    
+    # Filtros Técnicos Forçados
+    rsi = ta.rsi(df['Close'], length=2).iloc[-1]
+    bb = ta.bbands(df['Close'], length=20, std=3.0)
+    
+    # Lógica Sniper 100%
+    if rsi < 8 and pavio_inferior > corpo and ultima['Close'] <= bb.iloc[-1, 0]:
+        return "COMPRA (CALL) 🔥", "#00ff00"
+    elif rsi > 92 and pavio_superior > corpo and ultima['Close'] >= bb.iloc[-1, 2]:
+        return "VENDA (PUT) 🔥", "#ff0000"
+    return "AGUARDANDO...", "#333"
+
+# --- ÁREA PRINCIPAL ---
+col_1, col_2 = st.columns([1, 2.5])
+
+ativos = {"EUR/USD": "EURUSD=X", "USD/BRL": "BRL=X", "BTC/USD": "BTC-USD"}
+ativo_sel = st.selectbox("ATIVO:", list(ativos.keys()))
+
+with col_1:
+    segundos = 60 - datetime.now().second
+    cor_timer = "#00ff00" if segundos > 10 else "#ff0000"
+    st.markdown(f'<div class="timer-m1" style="color:{cor_timer};">{segundos}s</div>', unsafe_allow_html=True)
+    
+    df = yf.download(ativos[ativo_sel], period="1d", interval="1m", progress=False)
+    if not df.empty:
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+        
+        sinal, cor_sinal = analisar_velas_sniper(df)
+        st.markdown(f"""
+            <div class="status-panel" style="border-color:{cor_sinal};">
+                <h3 style="color:{cor_sinal};">{sinal}</h3>
+                <p style="color:#888;">Análise de Velas M1 Ativa</p>
             </div>
-            """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+        
+        if sinal != "AGUARDANDO...":
             st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
-            st.session_state.win_rate['total'] += 1 # Simulação de registro
 
-    # CALCULADORA SOROS ELITE
-    st.markdown("---")
-    banca = st.number_input("Banca Atual:", value=100.0)
-    entrada = banca * 0.10
-    st.info(f"Entrada Recomendada: R$ {entrada:.2f}")
-
-with col_viz:
-    sel = st.selectbox("ATIVO EM FOCO:", list(ativos_sniper.keys()))
-    seg = 60 - datetime.now().second
-    st.markdown(f'<div class="timer-sniper">{seg}s</div>', unsafe_allow_html=True)
-
-    df_viz = yf.download(ativos_sniper[sel], period="1d", interval="1m", progress=False)
-    if not df_viz.empty:
-        if isinstance(df_viz.columns, pd.MultiIndex): df_viz.columns = df_viz.columns.get_level_values(0)
-        
-        
-        
-        fig = go.Figure(data=[go.Candlestick(x=df_viz.index, open=df_viz['Open'], high=df_viz['High'], low=df_viz['Low'], close=df_viz['Close'])])
-        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450, 
-                          margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='#000', plot_bgcolor='#000')
+with col_2:
+    if not df.empty:
+        fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
+        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450, margin=dict(l=0,r=0,t=0,b=0))
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Botões de Simulação de Resultado (Para a Gestão)
+        c_win, c_loss = st.columns(2)
+        if c_win.button("✅ REGISTRAR WIN"):
+            st.session_state.saldo_atual += (banca_inicial * 0.05) * 0.87 # Ganho médio
+        if c_loss.button("❌ REGISTRAR LOSS"):
+            st.session_state.saldo_atual -= (banca_inicial * 0.05)
 
-        link_q = sel.replace("/", "")
-        st.link_button(f"🚀 ABRIR {sel} NA QUOTEX", f"https://qxbroker.com/pt/trade/{link_q}", use_container_width=True)
+        st.link_button(f"🚀 ABRIR {ativo_sel} NA QUOTEX", f"https://qxbroker.com/pt/trade/{ativo_sel.replace('/','')}", use_container_width=True)
 
 time.sleep(1)
 st.rerun()
