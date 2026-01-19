@@ -7,101 +7,106 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="VECNA INFERNO ELITE", page_icon="👹", layout="wide")
+st.set_page_config(page_title="STRANGER PROFITS ARCADE", page_icon="🕹️", layout="wide")
 
-# --- FUNÇÃO ATMOSFERA (MÚSICA, SOM E CÓPIA) ---
-def injetar_atmosfera(nome_copiar, sinal_atual):
-    sound_vecna = "https://www.myinstants.com/media/sounds/vecna-clock-sound-effect.mp3"
-    # Trilha oficial de suspense
-    musica_fundo = "https://www.youtube.com/embed/Av1DFgWLR0E?autoplay=1&loop=1&playlist=Av1DFgWLR0E"
-    corretora_url = "https://qxbroker.com/pt/demo-trade"
+# --- ESTILO CSS PARA RÉPLICA DA IMAGEM ---
+st.markdown("""
+    <style>
+    /* Fundo Dark Blue/Grey da imagem */
+    .stApp {
+        background-color: #1a1c24 !important;
+    }
     
-    js_code = f"""
-        <script>
-        function executarAcao() {{
-            const el = document.createElement('textarea');
-            el.value = "{nome_copiar}";
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-            var audio = new Audio("{sound_vecna}");
-            audio.play();
-            window.open("{corretora_url}", "_blank");
-        }}
-        </script>
-        <iframe src="{musica_fundo}" width="0" height="0" frameborder="0" allow="autoplay"></iframe>
-        <div onclick="executarAcao()" style="background: linear-gradient(135deg, #8b0000 0%, #ff4500 100%); color: white; padding: 25px; border-radius: 15px; text-align: center; cursor: pointer; font-weight: bold; border: 3px solid #fff; box-shadow: 0 0 30px #f00; margin-top: 20px; font-size: 20px; font-family: sans-serif;">
-            ⚔️ DESFERIR GOLPE: COPIAR "{nome_copiar}" & ABRIR CORRETORA
+    /* Cabeçalho "STRANGER PROFITS ARCADE" */
+    .header-banner {
+        background-color: #000;
+        padding: 15px;
+        text-align: center;
+        border-bottom: 4px solid #ff0000;
+        margin: -60px -50px 20px -50px;
+        position: relative;
+    }
+    .header-banner h1 {
+        color: #ff0000 !important;
+        font-family: 'Arial Black', sans-serif;
+        font-size: 42px !important;
+        letter-spacing: 2px;
+        margin: 0;
+        text-shadow: 2px 2px 0px #fff;
+    }
+    
+    /* Personagens no Topo (Réplica da Imagem) */
+    .char-line {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-top: 5px;
+    }
+    .char-img { width: 45px; height: 45px; }
+    .vecna-fire { width: 60px; filter: drop-shadow(0 0 10px #f00); }
+
+    /* Estilo do Gráfico (Card) */
+    .chart-container {
+        background-color: #242731;
+        border: 1px solid #363a45;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+
+    /* Botões de Sinal (Buy/Sell) Idênticos à Imagem */
+    .signal-wrapper {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        margin-top: 15px;
+    }
+    .signal-card {
+        flex: 1;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        border: 3px solid;
+    }
+    .buy-card {
+        background-color: #2eb85c;
+        border-color: #1f7a3d;
+        color: white;
+        box-shadow: 0 0 15px rgba(46, 184, 92, 0.4);
+    }
+    .sell-card {
+        background-color: #e55353;
+        border-color: #a33b3b;
+        color: white;
+        box-shadow: 0 0 15px rgba(229, 83, 83, 0.4);
+    }
+    .signal-label { font-size: 14px; text-transform: uppercase; opacity: 0.9; }
+    .signal-main { font-size: 28px; font-weight: bold; margin: 5px 0; }
+    .signal-sub { font-size: 12px; font-family: monospace; }
+
+    /* Sidebar Customizada */
+    [data-testid="stSidebar"] {
+        background-color: #14161b !important;
+        border-right: 1px solid #363a45;
+    }
+    .st-emotion-cache-16ids93 { color: #8a919e !important; }
+    </style>
+    
+    <div class="header-banner">
+        <h1>STRANGER PROFITS</h1>
+        <div class="char-line">
+            <img class="char-img" src="https://img.icons8.com/color/96/stranger-things-eleven.png" style="transform: rotate(-20deg);">
+            <img class="char-img" src="https://img.icons8.com/color/48/stranger-things-mike-wheeler.png">
+            <img class="char-img" src="https://img.icons8.com/color/48/stranger-things-dustin.png">
+            <img class="char-img" src="https://img.icons8.com/color/48/stranger-things-lucas-sinclair.png">
+            <img class="char-img" src="https://img.icons8.com/color/48/stranger-things-will-byers.png">
+            <img class="vecna-fire" src="https://img.icons8.com/color/96/horror.png">
         </div>
-    """
-    st.components.v1.html(js_code, height=180)
+    </div>
+    """, unsafe_allow_html=True)
 
-# --- ESTILO VISUAL RPG + FOGO + TEXTO CLARO ---
-def carregar_estilo(sinal_atual):
-    efeito_fogo = "border-top: 5px solid #300;"
-    if sinal_atual == -1: # Venda
-        efeito_fogo = "border-top: 15px solid #ff4500; box-shadow: inset 0 0 100px #ff0000;"
-    elif sinal_atual == 1: # Compra
-        efeito_fogo = "border-top: 15px solid #00ff00; box-shadow: inset 0 0 100px #003300;"
-
-    st.markdown(f"""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-        .stApp {{
-            background-color: #000000 !important;
-            {efeito_fogo}
-        }}
-
-        /* ANIMAÇÃO RPG STRANGER THINGS */
-        .rpg-path {{ 
-            width: 100%; height: 90px; position: relative; overflow: hidden; 
-            background: rgba(15,0,0,0.9); border-bottom: 3px solid #ff0000; margin-bottom: 20px;
-        }}
-        .party-animation {{ 
-            position: absolute; white-space: nowrap; 
-            animation: walk 18s linear infinite; 
-            display: flex; align-items: center; gap: 20px;
-            bottom: 10px;
-        }}
-        .char {{ width: 50px; height: 50px; background-size: contain; background-repeat: no-repeat; }}
-        .eleven {{ background-image: url('https://img.icons8.com/color/96/stranger-things-eleven.png'); }}
-        .dustin {{ background-image: url('https://img.icons8.com/color/96/stranger-things-dustin.png'); }}
-        .mike {{ background-image: url('https://img.icons8.com/color/96/stranger-things-mike-wheeler.png'); }}
-        .vecna {{ background-image: url('https://img.icons8.com/color/96/horror.png'); margin-left: 60px; }}
-
-        @keyframes walk {{ from {{ left: -600px; }} to {{ left: 100%; }} }}
-
-        /* TEXTOS E INTERFACE */
-        h1, h2, h3 {{ font-family: 'Press Start 2P', cursive; color: #ffffff !important; text-shadow: 3px 3px #ff0000; text-align: center; }}
-        .stMetric div {{ color: #ffffff !important; font-family: 'Press Start 2P', cursive !important; font-size: 16px !important; }}
-        label {{ color: #ffaaaa !important; font-weight: bold !important; text-transform: uppercase; }}
-        
-        .timer-text {{ 
-            font-family: 'Press Start 2P', cursive; font-size: 60px; color: #ff0000; 
-            text-align: center; text-shadow: 0 0 25px #f00; margin: 15px 0;
-        }}
-
-        .signal-card {{ padding: 30px; border-radius: 20px; text-align: center; border: 4px solid #500; background: #0a0a0a; }}
-        .buy {{ background: #008800 !important; border-color: #00ff00 !important; box-shadow: 0 0 30px #0f0; }}
-        .sell {{ background: #880000 !important; border-color: #ff4500 !important; box-shadow: 0 0 50px #ff4500; }}
-        
-        [data-testid="stSidebar"] {{ background-color: #050505 !important; border-right: 2px solid #ff0000; }}
-        </style>
-
-        <div class="rpg-path">
-            <div class="party-animation">
-                <div class="char eleven"></div>
-                <div class="char dustin"></div>
-                <div class="char mike"></div>
-                <div style="color:white; font-family:'Press Start 2P'; font-size:10px;">ESTAMOS CHEGANDO...</div>
-                <div class="char vecna"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-# --- BUSCA DE DADOS ---
+# --- FUNÇÃO DE BUSCA DE DADOS ---
 @st.cache_data(ttl=5)
 def buscar_dados(ticker):
     try:
@@ -112,70 +117,89 @@ def buscar_dados(ticker):
         return df.dropna()
     except: return None
 
-# --- MENU LATERAL (TODOS OS ATIVOS) ---
-st.sidebar.title("👹 PORTAL VECNA")
-cat = st.sidebar.radio("Dimensão:", ["Ações (STOCKS)", "Criptomoedas", "Forex (MOEDAS)", "Commodities"])
+# --- SIDEBAR (CONFORME A IMAGEM) ---
+st.sidebar.markdown("<h2 style='color:white; font-size:20px;'>app.py</h2>", unsafe_allow_html=True)
+st.sidebar.button("STRANGER PORTAL", use_container_width=True)
 
-ativos_full = {
-    "Ações (STOCKS)": {
-        "NVIDIA": "NVDA", "McDonald's": "MCD", "Tesla": "TSLA", "Apple": "AAPL", 
-        "Amazon": "AMZN", "Netflix": "NFLX", "Microsoft": "MSFT", "Disney": "DIS"
-    },
-    "Criptomoedas": {
-        "Bitcoin": "BTC-USD", "Ethereum": "ETH-USD", "Solana": "SOL-USD", "XRP": "XRP-USD", "Cardano": "ADA-USD"
-    },
-    "Forex (MOEDAS)": {
-        "EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X", "AUD/USD": "AUDUSD=X", "EUR/GBP": "EURGBP=X"
-    },
-    "Commodities": {
-        "Ouro (Gold)": "GC=F", "Prata (Silver)": "SI=F", "Petróleo": "CL=F"
-    }
+st.sidebar.markdown("<p style='color:#8a919e; margin-top:10px;'>Atives:</p>", unsafe_allow_html=True)
+cat = st.sidebar.radio("", ["Ações", "Forex", "Commodities"])
+
+ativos_dict = {
+    "Ações": {"McDonald's, MCD": "MCD", "Coke": "KO", "NVIDIA": "NVDA"},
+    "Forex": {"EUR/USD": "EURUSD=X", "GBP/JPY": "GBPJPY=X"},
+    "Commodities": {"CL=F (Petróleo)": "CL=F"}
 }
 
-lista = ativos_full[cat]
-nome_exibicao = st.sidebar.selectbox("Escolha o Alvo:", list(lista.keys()))
+lista = ativos_dict[cat]
+nome_exibicao = st.sidebar.selectbox("Selecione:", list(lista.keys()))
 par_original = lista[nome_exibicao]
-nome_copiar = par_original.replace("-USD", "").replace("=X", "").replace("=F", "")
 
-# --- PROCESSAMENTO DE SINAL ---
+# --- PROCESSAMENTO PRINCIPAL ---
 df = buscar_dados(par_original)
-sinal, rsi, preco = 0, 0, 0
 
 if df is not None and len(df) > 14:
     rsi = float(ta.rsi(df['Close'], length=14).iloc[-1])
     bb = ta.bbands(df['Close'], length=20, std=2.5)
     preco = float(df['Close'].iloc[-1])
+    
+    sinal = 0 # 0=Wait, 1=Buy, -1=Sell
     if preco <= bb.iloc[-1, 0] and rsi < 30: sinal = 1 
     elif preco >= bb.iloc[-1, 2] and rsi > 70: sinal = -1
 
-carregar_estilo(sinal)
-
-if df is not None:
-    st.markdown(f"### MONITORANDO DIMENSÃO: {nome_exibicao}")
+    # Título do gráfico conforme a imagem
+    st.markdown(f"<p style='color:white; font-size:16px;'>{nome_exibicao} (period 1d, interval 1m)</p>", unsafe_allow_html=True)
     
+    # Gráfico dentro do Card
+    with st.container():
+        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+        fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
+        fig.update_layout(
+            template="plotly_dark", 
+            xaxis_rangeslider_visible=False, 
+            height=300,
+            paper_bgcolor='rgba(0,0,0,0)', 
+            plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=0, r=0, t=0, b=0)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Painel de Sinais (BUY / SELL)
+    c_buy, c_sell = st.columns(2)
+    
+    with c_buy:
+        # Se sinal for 1, brilha mais; se não, fica padrão
+        st.markdown(f"""
+            <div class="signal-card buy-card">
+                <div class="signal-label">— Signal —</div>
+                <div class="signal-main">BUY</div>
+                <div class="signal-sub">COPIPE FINAL</div>
+                <div style="font-size:10px; margin-top:5px;">nome - {preco:.1f} - USD</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+    with c_sell:
+        st.markdown(f"""
+            <div class="signal-card sell-card">
+                <div class="signal-label">— Signal —</div>
+                <div class="signal-main">SELL</div>
+                <div class="signal-sub">"FROCK" "HOO"</div>
+                <div style="font-size:10px; margin-top:5px;">nome - {preco:.1f} - 700</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # Lógica de som e cópia automática no sinal
     if sinal != 0:
-        classe = "buy" if sinal == 1 else "sell"
-        texto = "⬆️ COMPRA (CALL)" if sinal == 1 else "🔥 VENDA (INFERNO) 🔥"
-        st.markdown(f'<div class="signal-card {classe}"><h1>{texto}</h1></div>', unsafe_allow_html=True)
-        injetar_atmosfera(nome_copiar, sinal)
-    else:
-        st.markdown('<div class="signal-card" style="border-color:#333;"><h3>⌛ BUSCANDO ENERGIA...</h3></div>', unsafe_allow_html=True)
+        # Copia o ativo para a Quotex
+        ativo_limpo = par_original.replace("=X", "").replace("-USD", "").replace("=F", "")
+        js_copy = f"""
+        <script>
+        navigator.clipboard.writeText("{ativo_limpo}");
+        var audio = new Audio("https://www.myinstants.com/media/sounds/vecna-clock-sound-effect.mp3");
+        audio.play();
+        </script>
+        """
+        st.components.v1.html(js_copy, height=0)
 
-    segundos = 60 - datetime.now().second
-    st.markdown(f'<div class="timer-text">{segundos}s</div>', unsafe_allow_html=True)
-    
-    c1, c2 = st.columns(2)
-    c1.metric("PREÇO", f"{preco:.4f}")
-    c2.metric("FORÇA RSI", f"{rsi:.0f}%")
-
-    fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=400, 
-                      paper_bgcolor='#000', plot_bgcolor='#000', margin=dict(l=0,r=0,b=0,t=0))
-    st.plotly_chart(fig, use_container_width=True)
-    
     time.sleep(1)
-    st.rerun()
-else:
-    st.info("Portal instável... Reconectando em 2 segundos.")
-    time.sleep(2)
     st.rerun()
