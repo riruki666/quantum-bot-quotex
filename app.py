@@ -9,197 +9,136 @@ import time
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="STRANGER PROFITS ARCADE", page_icon="🕹️", layout="wide")
 
-# --- ESTILO CSS PARA RÉPLICA DA IMAGEM ---
+# --- CSS: ANIMAÇÃO, ATIVOS E CORES ---
 st.markdown("""
     <style>
-    /* Fundo Dark Blue/Grey da imagem */
-    .stApp {
-        background-color: #1a1c24 !important;
-    }
-    
-    /* Cabeçalho "STRANGER PROFITS ARCADE" */
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    .stApp { background-color: #1a1c24 !important; }
+
+    /* Cabeçalho FIXO com Personagens */
     .header-banner {
         background-color: #000;
-        padding: 15px;
+        padding: 20px;
         text-align: center;
         border-bottom: 4px solid #ff0000;
         margin: -60px -50px 20px -50px;
-        position: relative;
     }
     .header-banner h1 {
         color: #ff0000 !important;
         font-family: 'Arial Black', sans-serif;
-        font-size: 42px !important;
-        letter-spacing: 2px;
+        font-size: 40px !important;
         margin: 0;
         text-shadow: 2px 2px 0px #fff;
     }
+
+    /* ANIMAÇÃO DOS PERSONAGENS CORRENDO */
+    .rpg-track {
+        width: 100%; height: 60px; position: relative; overflow: hidden;
+        background: rgba(255,0,0,0.1); margin-top: 10px;
+    }
+    .party-walk {
+        position: absolute; display: flex; gap: 20px;
+        animation: moveParty 12s linear infinite;
+    }
+    .char-sprite { width: 45px; height: 45px; }
+    @keyframes moveParty {
+        from { left: -300px; }
+        to { left: 100%; }
+    }
+
+    /* Cards e Sinais */
+    .chart-card {
+        background-color: #242731; border: 1px solid #363a45;
+        border-radius: 12px; padding: 15px;
+    }
+    .sig-btn {
+        padding: 25px; border-radius: 15px; text-align: center; font-weight: bold;
+    }
+    .buy-btn { background: #2eb85c; border: 3px solid #1f7a3d; color: white; }
+    .sell-btn { background: #e55353; border: 3px solid #a33b3b; color: white; }
     
-    /* Personagens no Topo (Réplica da Imagem) */
-    .char-line {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 10px;
-        margin-top: 5px;
-    }
-    .char-img { width: 45px; height: 45px; }
-    .vecna-fire { width: 60px; filter: drop-shadow(0 0 10px #f00); }
-
-    /* Estilo do Gráfico (Card) */
-    .chart-container {
-        background-color: #242731;
-        border: 1px solid #363a45;
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 10px;
-    }
-
-    /* Botões de Sinal (Buy/Sell) Idênticos à Imagem */
-    .signal-wrapper {
-        display: flex;
-        justify-content: space-between;
-        gap: 20px;
-        margin-top: 15px;
-    }
-    .signal-card {
-        flex: 1;
-        border-radius: 15px;
-        padding: 20px;
-        text-align: center;
-        border: 3px solid;
-    }
-    .buy-card {
-        background-color: #2eb85c;
-        border-color: #1f7a3d;
-        color: white;
-        box-shadow: 0 0 15px rgba(46, 184, 92, 0.4);
-    }
-    .sell-card {
-        background-color: #e55353;
-        border-color: #a33b3b;
-        color: white;
-        box-shadow: 0 0 15px rgba(229, 83, 83, 0.4);
-    }
-    .signal-label { font-size: 14px; text-transform: uppercase; opacity: 0.9; }
-    .signal-main { font-size: 28px; font-weight: bold; margin: 5px 0; }
-    .signal-sub { font-size: 12px; font-family: monospace; }
-
-    /* Sidebar Customizada */
-    [data-testid="stSidebar"] {
-        background-color: #14161b !important;
-        border-right: 1px solid #363a45;
-    }
-    .st-emotion-cache-16ids93 { color: #8a919e !important; }
+    /* Sidebar */
+    [data-testid="stSidebar"] { background-color: #14161b !important; }
     </style>
     
     <div class="header-banner">
         <h1>STRANGER PROFITS</h1>
-        <div class="char-line">
-            <img class="char-img" src="https://img.icons8.com/color/96/stranger-things-eleven.png" style="transform: rotate(-20deg);">
-            <img class="char-img" src="https://img.icons8.com/color/48/stranger-things-mike-wheeler.png">
-            <img class="char-img" src="https://img.icons8.com/color/48/stranger-things-dustin.png">
-            <img class="char-img" src="https://img.icons8.com/color/48/stranger-things-lucas-sinclair.png">
-            <img class="char-img" src="https://img.icons8.com/color/48/stranger-things-will-byers.png">
-            <img class="vecna-fire" src="https://img.icons8.com/color/96/horror.png">
+        <div class="rpg-track">
+            <div class="party-walk">
+                <img class="char-sprite" src="https://img.icons8.com/color/96/stranger-things-eleven.png">
+                <img class="char-sprite" src="https://img.icons8.com/color/96/stranger-things-mike-wheeler.png">
+                <img class="char-sprite" src="https://img.icons8.com/color/96/stranger-things-dustin.png">
+                <img class="char-sprite" src="https://img.icons8.com/color/96/stranger-things-lucas-sinclair.png">
+                <span style="font-size:40px;">👹</span>
+            </div>
         </div>
     </div>
+    
+    <iframe src="https://www.youtube.com/embed/Av1DFgWLR0E?autoplay=1&loop=1&playlist=Av1DFgWLR0E" 
+            width="0" height="0" frameborder="0" allow="autoplay"></iframe>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÃO DE BUSCA DE DADOS ---
-@st.cache_data(ttl=5)
-def buscar_dados(ticker):
-    try:
-        df = yf.download(ticker, period="1d", interval="1m", progress=False)
-        if df.empty: return None
-        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-        df.columns = [str(col).capitalize() for col in df.columns]
-        return df.dropna()
-    except: return None
+# --- LISTA COMPLETA DE ATIVOS ---
+st.sidebar.title("🕹️ MENU DE ATIVOS")
+categoria = st.sidebar.radio("Escolha a Categoria:", ["Ações", "Criptos", "Forex", "Commodities"])
 
-# --- SIDEBAR (CONFORME A IMAGEM) ---
-st.sidebar.markdown("<h2 style='color:white; font-size:20px;'>app.py</h2>", unsafe_allow_html=True)
-st.sidebar.button("STRANGER PORTAL", use_container_width=True)
-
-st.sidebar.markdown("<p style='color:#8a919e; margin-top:10px;'>Atives:</p>", unsafe_allow_html=True)
-cat = st.sidebar.radio("", ["Ações", "Forex", "Commodities"])
-
-ativos_dict = {
-    "Ações": {"McDonald's, MCD": "MCD", "Coke": "KO", "NVIDIA": "NVDA"},
-    "Forex": {"EUR/USD": "EURUSD=X", "GBP/JPY": "GBPJPY=X"},
-    "Commodities": {"CL=F (Petróleo)": "CL=F"}
+ativos_db = {
+    "Ações": {"McDonald's": "MCD", "Coke": "KO", "NVIDIA": "NVDA", "Tesla": "TSLA", "Apple": "AAPL", "Amazon": "AMZN"},
+    "Criptos": {"Bitcoin": "BTC-USD", "Ethereum": "ETH-USD", "Solana": "SOL-USD", "XRP": "XRP-USD"},
+    "Forex": {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X", "GBP/JPY": "GBPJPY=X"},
+    "Commodities": {"Petróleo (WTI)": "CL=F", "Ouro (Gold)": "GC=F", "Prata": "SI=F"}
 }
 
-lista = ativos_dict[cat]
-nome_exibicao = st.sidebar.selectbox("Selecione:", list(lista.keys()))
-par_original = lista[nome_exibicao]
+lista_ativos = ativos_db[categoria]
+escolha = st.sidebar.selectbox("Selecione o Ativo:", list(lista_ativos.keys()))
+ticker = lista_ativos[escolha]
 
-# --- PROCESSAMENTO PRINCIPAL ---
-df = buscar_dados(par_original)
+# --- BUSCA DE DADOS ---
+@st.cache_data(ttl=5)
+def get_data(symbol):
+    data = yf.download(symbol, period="1d", interval="1m", progress=False)
+    if not data.empty:
+        if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(0)
+        return data.dropna()
+    return None
 
-if df is not None and len(df) > 14:
+df = get_data(ticker)
+
+if df is not None and len(df) > 20:
     rsi = float(ta.rsi(df['Close'], length=14).iloc[-1])
     bb = ta.bbands(df['Close'], length=20, std=2.5)
     preco = float(df['Close'].iloc[-1])
     
-    sinal = 0 # 0=Wait, 1=Buy, -1=Sell
-    if preco <= bb.iloc[-1, 0] and rsi < 30: sinal = 1 
-    elif preco >= bb.iloc[-1, 2] and rsi > 70: sinal = -1
+    # Lógica de Sinal
+    sinal = 0
+    if preco <= bb.iloc[-1, 0] and rsi < 35: sinal = 1
+    elif preco >= bb.iloc[-1, 2] and rsi > 65: sinal = -1
 
-    # Título do gráfico conforme a imagem
-    st.markdown(f"<p style='color:white; font-size:16px;'>{nome_exibicao} (period 1d, interval 1m)</p>", unsafe_allow_html=True)
-    
-    # Gráfico dentro do Card
-    with st.container():
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-        fig.update_layout(
-            template="plotly_dark", 
-            xaxis_rangeslider_visible=False, 
-            height=300,
-            paper_bgcolor='rgba(0,0,0,0)', 
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=0, r=0, t=0, b=0)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown(f"### 📊 {escolha} (Minuto a Minuto)")
 
-    # Painel de Sinais (BUY / SELL)
-    c_buy, c_sell = st.columns(2)
-    
-    with c_buy:
-        # Se sinal for 1, brilha mais; se não, fica padrão
-        st.markdown(f"""
-            <div class="signal-card buy-card">
-                <div class="signal-label">— Signal —</div>
-                <div class="signal-main">BUY</div>
-                <div class="signal-sub">COPIPE FINAL</div>
-                <div style="font-size:10px; margin-top:5px;">nome - {preco:.1f} - USD</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-    with c_sell:
-        st.markdown(f"""
-            <div class="signal-card sell-card">
-                <div class="signal-label">— Signal —</div>
-                <div class="signal-main">SELL</div>
-                <div class="signal-sub">"FROCK" "HOO"</div>
-                <div style="font-size:10px; margin-top:5px;">nome - {preco:.1f} - 700</div>
-            </div>
-            """, unsafe_allow_html=True)
+    # Gráfico
+    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+    fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
+    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=350,
+                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Lógica de som e cópia automática no sinal
+    # Cards de Sinal
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f"""<div class="sig-btn buy-btn">
+            <small>SIGNAL</small><br>BUY<br><span style='font-size:10px;'>COPIPE FINAL - {preco:.2f}</span>
+            </div>""", unsafe_allow_html=True)
+    with c2:
+        st.markdown(f"""<div class="sig-btn sell-btn">
+            <small>SIGNAL</small><br>SELL<br><span style='font-size:10px;'>"FROCK" "HOO" - {preco:.2f}</span>
+            </div>""", unsafe_allow_html=True)
+
+    # Se houver sinal, toca o relógio do Vecna
     if sinal != 0:
-        # Copia o ativo para a Quotex
-        ativo_limpo = par_original.replace("=X", "").replace("-USD", "").replace("=F", "")
-        js_copy = f"""
-        <script>
-        navigator.clipboard.writeText("{ativo_limpo}");
-        var audio = new Audio("https://www.myinstants.com/media/sounds/vecna-clock-sound-effect.mp3");
-        audio.play();
-        </script>
-        """
-        st.components.v1.html(js_copy, height=0)
+        st.markdown(f'<audio autoplay><source src="https://www.myinstants.com/media/sounds/vecna-clock-sound-effect.mp3"></audio>', unsafe_allow_html=True)
 
     time.sleep(1)
     st.rerun()
