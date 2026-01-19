@@ -7,95 +7,58 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="STRANGER PROFITS", page_icon="👹", layout="wide")
+st.set_page_config(page_title="STRANGER PROFITS - ANALYTICS", page_icon="📈", layout="wide")
 
-# --- CSS: ESTILO BRASIL + PERSONAGENS REAIS ---
+# --- CSS PERSONALIZADO ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-    .stApp { background-color: #111217 !important; }
-
-    .header-banner {
-        background: linear-gradient(180deg, #4b0000 0%, #000000 100%);
-        padding: 20px;
-        text-align: center;
-        border-bottom: 4px solid #ff0000;
-        margin: -60px -50px 20px -50px;
-    }
-    
-    .header-banner h1 {
-        color: #ff0000 !important;
+    .stApp { background-color: #0e1117 !important; }
+    .main-title {
+        color: #ff0000;
         font-family: 'Arial Black', sans-serif;
-        font-size: 42px !important;
-        text-shadow: 2px 2px 0px #fff;
-        margin-bottom: 10px;
+        font-size: 50px;
+        text-align: center;
+        text-shadow: 2px 2px #fff;
+        margin-top: -50px;
     }
-
-    /* Animação com links de imagens ultra-estáveis */
-    .track {
-        width: 100%; height: 110px; position: relative; overflow: hidden;
-        background: rgba(255,0,0,0.05); border-radius: 10px;
+    .stMetric { background-color: #1a1c24; padding: 10px; border-radius: 10px; border: 1px solid #333; }
+    .timer-box {
+        font-size: 24px;
+        color: #ffcc00;
+        text-align: center;
+        padding: 10px;
+        border: 2px solid #ffcc00;
+        border-radius: 10px;
+        background: #000;
     }
-    .party {
-        position: absolute; display: flex; gap: 35px; align-items: center;
-        animation: walk 18s linear infinite; bottom: 5px;
-    }
-    .char { width: 75px; height: 100px; object-fit: contain; filter: drop-shadow(0 0 5px #fff); }
-
-    @keyframes walk {
-        from { left: -600px; }
-        to { left: 100%; }
-    }
-
-    .chart-container {
-        background-color: #1a1c24; border: 1px solid #363a45;
-        border-radius: 12px; padding: 15px; margin: 10px 0;
-    }
-
-    .sig-row { display: flex; gap: 20px; margin-top: 15px; }
-    .sig-card {
-        flex: 1; padding: 25px; border-radius: 15px; text-align: center;
-        border: 2px solid #fff; font-family: 'Arial Black', sans-serif;
-    }
-    .buy { background-color: #2eb85c; color: white; box-shadow: 0 0 20px #2eb85c; }
-    .sell { background-color: #e55353; color: white; box-shadow: 0 0 20px #e55353; }
-    
-    [data-testid="stSidebar"] { background-color: #0d0e12 !important; border-right: 1px solid #333; }
     </style>
     
-    <div class="header-banner">
-        <h1>STRANGER PROFITS</h1>
-        <div class="track">
-            <div class="party">
-                <img class="char" src="https://www.nicepng.com/png/full/258-2581699_stranger-things-eleven-png.png">
-                <img class="char" src="https://www.nicepng.com/png/full/966-9665672_mike-wheeler-stranger-things.png">
-                <img class="char" src="https://www.nicepng.com/png/full/966-9665768_dustin-henderson-stranger-things.png">
-                <img class="char" src="https://www.nicepng.com/png/full/966-9666014_lucas-sinclair-stranger-things.png">
-                <span style="font-size:70px;">👹</span>
-            </div>
-        </div>
-    </div>
+    <h1 class="main-title">STRANGER THINGS PROFITS</h1>
     
     <iframe src="https://www.youtube.com/embed/Av1DFgWLR0E?autoplay=1&loop=1&playlist=Av1DFgWLR0E" 
             width="0" height="0" frameborder="0" allow="autoplay"></iframe>
     """, unsafe_allow_html=True)
 
-# --- LISTA DE ATIVOS ---
-st.sidebar.markdown("<h2 style='color:white;'>PORTAL VECNA</h2>", unsafe_allow_html=True)
-categoria = st.sidebar.radio("Ativos:", ["Ações", "Cripto", "Forex", "Commodities"])
+# --- LISTA COMPLETA DE ATIVOS ---
+st.sidebar.title("👹 CONFIGURAÇÕES")
+cat = st.sidebar.radio("Mercado:", ["Ações BR/EUA", "Criptomoedas", "Forex (Moedas)", "Commodities"])
 
-ativos = {
-    "Ações": {"NVIDIA": "NVDA", "McDonald's": "MCD", "Tesla": "TSLA", "Apple": "AAPL"},
-    "Cripto": {"Bitcoin": "BTC-USD", "Ethereum": "ETH-USD"},
-    "Forex": {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X"},
-    "Commodities": {"Ouro": "GC=F", "Petróleo": "CL=F"}
+ativos_db = {
+    "Ações BR/EUA": {"NVIDIA": "NVDA", "Tesla": "TSLA", "Apple": "AAPL", "Petrobras": "PBR", "Amazon": "AMZN", "Netflix": "NFLX"},
+    "Criptomoedas": {"Bitcoin": "BTC-USD", "Ethereum": "ETH-USD", "Solana": "SOL-USD", "Cardano": "ADA-USD", "XRP": "XRP-USD"},
+    "Forex (Moedas)": {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X", "AUD/USD": "AUDUSD=X"},
+    "Commodities": {"Ouro": "GC=F", "Petróleo": "CL=F", "Prata": "SI=F"}
 }
 
-ticker_nome = st.sidebar.selectbox("Selecione:", list(ativos[categoria].keys()))
-ticker = ativos[categoria][ticker_nome]
+ticker_nome = st.sidebar.selectbox("Ativo:", list(ativos_db[cat].keys()))
+ticker = ativos_db[cat][ticker_nome]
 
-# --- DADOS ---
+# --- LÓGICA DO CRONÔMETRO (Vela de 1 min) ---
+agora = datetime.now()
+segundos_restantes = 60 - agora.second
+st.sidebar.markdown(f'<div class="timer-box">⏳ Próxima Vela: {segundos_restantes}s</div>', unsafe_allow_html=True)
+
+# --- BUSCA DE DADOS ---
 @st.cache_data(ttl=5)
 def load_data(s):
     try:
@@ -106,40 +69,45 @@ def load_data(s):
 
 df = load_data(ticker)
 
-if df is not None:
+if df is not None and len(df) > 20:
     rsi = float(ta.rsi(df['Close'], length=14).iloc[-1])
     bb = ta.bbands(df['Close'], length=20, std=2.5)
-    preco = float(df['Close'].iloc[-1])
+    preco_atual = float(df['Close'].iloc[-1])
     
-    st.markdown(f"### 📈 Monitorando: {ticker_nome}")
-
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    # --- GRÁFICO ---
     fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=350,
-                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0,r=0,t=0,b=0))
+    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450,
+                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Botões de Sinal
-    st.markdown('<div class="sig-row">', unsafe_allow_html=True)
-    col_buy, col_sell = st.columns(2)
-    with col_buy:
-        st.markdown(f"""<div class="sig-card buy">
-            <div style="font-size:12px;">SINAL</div>
-            <div style="font-size:30px;">COMPRA</div>
-            <div style="font-size:14px;">GOLPE FINAL</div>
-            </div>""", unsafe_allow_html=True)
-    with col_sell:
-        st.markdown(f"""<div class="sig-card sell">
-            <div style="font-size:12px;">SINAL</div>
-            <div style="font-size:30px;">VENDA</div>
-            <div style="font-size:14px;">QUEIMAR VECNA</div>
-            </div>""", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # --- MÉTRICAS E SINAIS ---
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Preço", f"${preco_atual:.2f}")
+    col2.metric("RSI (Força)", f"{rsi:.1f}")
+    
+    # Lógica do Sino e Alerta
+    sinal = "AGUARDAR"
+    cor_sinal = "white"
+    
+    if rsi < 30:
+        sinal = "COMPRA (BUY)"
+        cor_sinal = "#2eb85c"
+        st.markdown(f'<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
+    elif rsi > 70:
+        sinal = "VENDA (SELL)"
+        cor_sinal = "#e55353"
+        st.markdown(f'<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
 
-    # Som de Alerta
-    if rsi < 35 or rsi > 65:
-        st.markdown(f'<audio autoplay><source src="https://www.myinstants.com/media/sounds/vecna-clock-sound-effect.mp3"></audio>', unsafe_allow_html=True)
+    col3.markdown(f"<h3 style='color:{cor_sinal}; text-align:center;'>{sinal}</h3>", unsafe_allow_html=True)
 
+    # --- LINK DIRETO PARA QUOTEX ---
+    # Limpa o ticker para o link (ex: remove =X ou -USD)
+    clean_ticker = ticker.split('=')[0].split('-')[0]
+    quotex_url = f"https://qxbroker.com/pt/demo-trade" # Nota: Quotex não aceita deep link direto de ativo externo sempre
+    
+    st.write("---")
+    st.link_button(f"🚀 ABRIR {ticker_nome} NA QUOTEX", quotex_url, use_container_width=True)
+
+    # Auto-refresh a cada 1 segundo para o cronômetro
     time.sleep(1)
     st.rerun()
