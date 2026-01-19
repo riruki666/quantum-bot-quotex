@@ -7,107 +7,147 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="STRANGER PROFITS - ANALYTICS", page_icon="📈", layout="wide")
+st.set_page_config(page_title="STRANGER PROFITS PRO", page_icon="📈", layout="wide")
 
-# --- CSS PERSONALIZADO ---
+# --- CSS PARA NITIDEZ E UI ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117 !important; }
+    /* Fundo preto puro para contraste máximo */
+    .stApp { background-color: #000000 !important; }
+    
+    /* Fontes Ultra Nítidas */
+    h1, h2, h3, p, div, span {
+        font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
+        -webkit-font-smoothing: antialiased;
+    }
+
     .main-title {
         color: #ff0000;
-        font-family: 'Arial Black', sans-serif;
-        font-size: 50px;
+        font-weight: 900;
+        font-size: 55px;
         text-align: center;
-        text-shadow: 2px 2px #fff;
-        margin-top: -50px;
+        text-shadow: 3px 3px 0px #ffffff;
+        margin-top: -40px;
+        letter-spacing: -2px;
     }
-    .stMetric { background-color: #1a1c24; padding: 10px; border-radius: 10px; border: 1px solid #333; }
-    .timer-box {
-        font-size: 24px;
-        color: #ffcc00;
+
+    /* Timer Centralizado e Brilhante */
+    .timer-display {
+        font-size: 50px;
+        font-weight: 900;
+        color: #00ff00;
         text-align: center;
-        padding: 10px;
-        border: 2px solid #ffcc00;
-        border-radius: 10px;
-        background: #000;
+        text-shadow: 0 0 15px #00ff00;
+        margin: 10px 0;
+        background: #111;
+        border-radius: 15px;
+        border: 2px solid #333;
+    }
+
+    /* Cards de Métricas com bordas claras */
+    [data-testid="stMetricValue"] {
+        font-size: 32px !important;
+        font-weight: 800 !important;
+        color: #ffffff !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        font-size: 16px !important;
+        color: #aaaaaa !important;
+        font-weight: 600 !important;
+    }
+
+    .signal-alert {
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        font-size: 40px;
+        font-weight: 900;
+        border: 4px solid #fff;
+    }
+
+    /* Botão Quotex de Alta Visibilidade */
+    .stButton>button {
+        background: linear-gradient(90deg, #ff0000 0%, #8b0000 100%) !important;
+        color: white !important;
+        font-weight: 900 !important;
+        font-size: 22px !important;
+        border-radius: 50px !important;
+        border: 2px solid #fff !important;
+        height: 60px !important;
     }
     </style>
     
-    <h1 class="main-title">STRANGER THINGS PROFITS</h1>
+    <h1 class="main-title">STRANGER PROFITS</h1>
     
     <iframe src="https://www.youtube.com/embed/Av1DFgWLR0E?autoplay=1&loop=1&playlist=Av1DFgWLR0E" 
             width="0" height="0" frameborder="0" allow="autoplay"></iframe>
     """, unsafe_allow_html=True)
 
-# --- LISTA COMPLETA DE ATIVOS ---
-st.sidebar.title("👹 CONFIGURAÇÕES")
-cat = st.sidebar.radio("Mercado:", ["Ações BR/EUA", "Criptomoedas", "Forex (Moedas)", "Commodities"])
+# --- MENU LATERAL ---
+st.sidebar.title("💎 TERMINAL DE ATIVOS")
+mercado = st.sidebar.radio("Mercado:", ["Ações", "Criptomoedas", "Forex", "Commodities"])
 
 ativos_db = {
-    "Ações BR/EUA": {"NVIDIA": "NVDA", "Tesla": "TSLA", "Apple": "AAPL", "Petrobras": "PBR", "Amazon": "AMZN", "Netflix": "NFLX"},
-    "Criptomoedas": {"Bitcoin": "BTC-USD", "Ethereum": "ETH-USD", "Solana": "SOL-USD", "Cardano": "ADA-USD", "XRP": "XRP-USD"},
-    "Forex (Moedas)": {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X", "AUD/USD": "AUDUSD=X"},
-    "Commodities": {"Ouro": "GC=F", "Petróleo": "CL=F", "Prata": "SI=F"}
+    "Ações": {"NVIDIA": "NVDA", "Tesla": "TSLA", "Apple": "AAPL", "Amazon": "AMZN", "McDonalds": "MCD"},
+    "Criptomoedas": {"Bitcoin": "BTC-USD", "Ethereum": "ETH-USD", "Solana": "SOL-USD"},
+    "Forex": {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X"},
+    "Commodities": {"Ouro": "GC=F", "Petróleo": "CL=F"}
 }
 
-ticker_nome = st.sidebar.selectbox("Ativo:", list(ativos_db[cat].keys()))
-ticker = ativos_db[cat][ticker_nome]
+nome_ativo = st.sidebar.selectbox("Ativo:", list(ativos_db[mercado].keys()))
+ticker = ativos_db[mercado][nome_ativo]
 
-# --- LÓGICA DO CRONÔMETRO (Vela de 1 min) ---
+# --- LÓGICA DO CRONÔMETRO DE VELA ---
 agora = datetime.now()
 segundos_restantes = 60 - agora.second
-st.sidebar.markdown(f'<div class="timer-box">⏳ Próxima Vela: {segundos_restantes}s</div>', unsafe_allow_html=True)
+cor_timer = "#00ff00" if segundos_restantes > 10 else "#ff0000"
+st.markdown(f'<div class="timer-display" style="color:{cor_timer}; text-shadow: 0 0 15px {cor_timer};">⏳ {segundos_restantes}s</div>', unsafe_allow_html=True)
 
-# --- BUSCA DE DADOS ---
-@st.cache_data(ttl=5)
-def load_data(s):
+# --- DADOS ---
+@st.cache_data(ttl=1)
+def get_live_data(s):
     try:
         data = yf.download(s, period="1d", interval="1m", progress=False)
         if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(0)
         return data.dropna()
     except: return None
 
-df = load_data(ticker)
+df = get_live_data(ticker)
 
-if df is not None and len(df) > 20:
+if df is not None and len(df) > 15:
     rsi = float(ta.rsi(df['Close'], length=14).iloc[-1])
     bb = ta.bbands(df['Close'], length=20, std=2.5)
-    preco_atual = float(df['Close'].iloc[-1])
+    preco = float(df['Close'].iloc[-1])
     
-    # --- GRÁFICO ---
+    # Gráfico
     fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450,
-                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=400,
+                      paper_bgcolor='#000', plot_bgcolor='#000', margin=dict(l=0,r=0,t=0,b=0))
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- MÉTRICAS E SINAIS ---
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Preço", f"${preco_atual:.2f}")
-    col2.metric("RSI (Força)", f"{rsi:.1f}")
-    
-    # Lógica do Sino e Alerta
-    sinal = "AGUARDAR"
-    cor_sinal = "white"
-    
-    if rsi < 30:
-        sinal = "COMPRA (BUY)"
-        cor_sinal = "#2eb85c"
-        st.markdown(f'<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
-    elif rsi > 70:
-        sinal = "VENDA (SELL)"
-        cor_sinal = "#e55353"
-        st.markdown(f'<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
+    # Painel Inferior
+    c1, c2 = st.columns(2)
+    c1.metric("VALOR ATUAL", f"{preco:.4f}")
+    c2.metric("ÍNDICE RSI", f"{rsi:.1f}%")
 
-    col3.markdown(f"<h3 style='color:{cor_sinal}; text-align:center;'>{sinal}</h3>", unsafe_allow_html=True)
+    # SINAIS E SINO
+    if rsi < 32:
+        st.markdown('<div class="signal-alert" style="background:#2eb85c;">🔥 COMPRA (CALL) 🔥</div>', unsafe_allow_html=True)
+        st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
+    elif rsi > 68:
+        st.markdown('<div class="signal-alert" style="background:#e55353;">🔥 VENDA (PUT) 🔥</div>', unsafe_allow_html=True)
+        st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="signal-alert" style="background:#111; border-color:#333; color:#555;">AGUARDANDO SINAL...</div>', unsafe_allow_html=True)
 
     # --- LINK DIRETO PARA QUOTEX ---
-    # Limpa o ticker para o link (ex: remove =X ou -USD)
-    clean_ticker = ticker.split('=')[0].split('-')[0]
-    quotex_url = f"https://qxbroker.com/pt/demo-trade" # Nota: Quotex não aceita deep link direto de ativo externo sempre
+    # Traduz o ticker para o padrão da corretora (Ex: EURUSD)
+    ativo_clean = ticker.replace("=X", "").replace("-USD", "").replace("=F", "")
+    url_final = f"https://qxbroker.com/pt/trade/{ativo_clean}"
     
-    st.write("---")
-    st.link_button(f"🚀 ABRIR {ticker_nome} NA QUOTEX", quotex_url, use_container_width=True)
+    st.write("")
+    st.link_button(f"🚀 OPERAR {nome_ativo} AGORA NA QUOTEX", url_final, use_container_width=True)
 
-    # Auto-refresh a cada 1 segundo para o cronômetro
     time.sleep(1)
     st.rerun()
