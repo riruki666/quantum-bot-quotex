@@ -7,106 +7,137 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="STRANGER PROFITS - AI SCANNER", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="STRANGER AI - MODO SOROS", page_icon="🔥", layout="wide")
 
-# --- ESTILO CSS PROFISSIONAL ---
+# --- CSS: DESIGN DE ALTA PERFORMANCE ---
 st.markdown("""
     <style>
-    .stApp { background-color: #050505 !important; }
+    .stApp { background-color: #000000 !important; }
     .main-title {
         color: #ff0000; font-weight: 900; font-size: 50px;
         text-align: center; text-shadow: 2px 2px 0px #ffffff;
-        margin-top: -50px;
+        margin-top: -60px;
     }
-    .scanner-card {
+    .radar-card {
         background: #111; border: 1px solid #333;
-        border-radius: 10px; padding: 15px; margin-bottom: 10px;
+        border-radius: 10px; padding: 12px; margin-bottom: 8px;
     }
-    .status-buy { color: #00ff00; font-weight: bold; }
-    .status-sell { color: #ff0000; font-weight: bold; }
     .timer-display {
-        font-size: 35px; font-weight: 900; text-align: center;
-        color: #ffcc00; background: #1a1a1a; padding: 10px;
-        border-radius: 10px; border: 2px solid #333;
+        font-size: 50px; font-weight: 900; text-align: center;
+        background: #0a0a0a; padding: 10px;
+        border: 2px solid #ff0000; border-radius: 15px;
+    }
+    .soros-box {
+        background: linear-gradient(135deg, #1a1c24 0%, #000 100%);
+        padding: 20px; border-radius: 15px;
+        border: 2px solid #ffcc00; margin-top: 20px;
+    }
+    .step-text { font-size: 14px; font-weight: bold; color: #ffcc00; }
+    .val-text { font-size: 22px; font-weight: 900; color: #ffffff; }
+    
+    /* Melhoria de Nitidez nas tabelas e botões */
+    .stButton>button {
+        font-weight: 900 !important;
+        border: 2px solid white !important;
     }
     </style>
-    <h1 class="main-title">STRANGER AI SCANNER</h1>
+    <h1 class="main-title">STRANGER PROFITS SOROS</h1>
     <iframe src="https://www.youtube.com/embed/Av1DFgWLR0E?autoplay=1&loop=1&playlist=Av1DFgWLR0E" 
             width="0" height="0" frameborder="0" allow="autoplay"></iframe>
     """, unsafe_allow_html=True)
 
-# --- BANCO DE DADOS DE VARREDURA ---
-watchlist = {
-    "EURUSD=X": "EUR/USD", "GBPUSD=X": "GBP/USD", "JPY=X": "USD/JPY",
-    "BTC-USD": "Bitcoin", "ETH-USD": "Ethereum", "SOL-USD": "Solana",
-    "NVDA": "NVIDIA", "TSLA": "Tesla", "AAPL": "Apple", "GC=F": "Ouro"
-}
+# --- BANCO DE ATIVOS EXPANDIDO ---
+ativos_monitorados = [
+    "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "EURJPY=X", "GBPJPY=X",
+    "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",
+    "NVDA", "TSLA", "AAPL", "NFLX", "GC=F", "CL=F"
+]
 
-# --- FUNÇÃO INTELIGENTE DE SCANNER ---
-def scanner_mercado():
-    oportunidades = []
-    for ticker, nome in watchlist.items():
+# --- MOTOR DE INTELIGÊNCIA (SCANNER) ---
+def scanner_ia():
+    sinais = []
+    # Varre os ativos principais em busca de exaustão
+    for t in ativos_monitorados[:12]:
         try:
-            df = yf.download(ticker, period="1d", interval="1m", progress=False)
-            if df.empty: continue
-            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+            d = yf.download(t, period="1d", interval="1m", progress=False)
+            if d.empty: continue
+            if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
             
-            rsi = ta.rsi(df['Close'], length=14).iloc[-1]
-            bb = ta.bbands(df['Close'], length=20, std=2.5)
-            preco = df['Close'].iloc[-1]
+            rsi = ta.rsi(d['Close'], length=14).iloc[-1]
+            bb = ta.bbands(d['Close'], length=20, std=2.5)
+            p = d['Close'].iloc[-1]
             
-            # Lógica de IA: Detectar Extremos
-            if rsi <= 32 and preco <= bb.iloc[-1, 0]:
-                oportunidades.append({"ativo": nome, "ticker": ticker, "tipo": "COMPRA (BAIXA)", "forca": rsi})
-            elif rsi >= 68 and preco >= bb.iloc[-1, 2]:
-                oportunidades.append({"ativo": nome, "ticker": ticker, "tipo": "VENDA (ALTA)", "forca": rsi})
+            if rsi <= 30 and p <= bb.iloc[-1, 0]:
+                sinais.append({"ticker": t, "tipo": "COMPRA", "cor": "#00ff00", "rsi": rsi})
+            elif rsi >= 70 and p >= bb.iloc[-1, 2]:
+                sinais.append({"ticker": t, "tipo": "VENDA", "cor": "#ff0000", "rsi": rsi})
         except: continue
-    return oportunidades
+    return sinais
 
-# --- INTERFACE ---
-col_L, col_R = st.columns([1, 3])
+# --- DIVISÃO DE COLUNAS ---
+col_side, col_main = st.columns([1, 2.8])
 
-with col_L:
-    st.markdown("### 🔍 Radar de Sinais")
-    if st.button("🔄 FORÇAR SCANNER"):
-        st.cache_data.clear()
-    
-    lista_ops = scanner_mercado()
-    
-    if not lista_ops:
-        st.info("Varrendo mercado... Nenhuma exaustão detectada no momento.")
+with col_side:
+    st.markdown("### 📡 RADAR DE SINAIS")
+    lista_sinais = scanner_ia()
+    if not lista_sinais:
+        st.info("🔎 Varrendo mercado... Nenhuma falha detectada.")
     else:
-        for op in lista_ops:
-            cor = "status-buy" if "COMPRA" in op['tipo'] else "status-sell"
+        for s in lista_sinais:
             st.markdown(f"""
-            <div class="scanner-card">
-                <b>{op['ativo']}</b><br>
-                Status: <span class="{cor}">{op['tipo']}</span><br>
-                RSI: {op['forca']:.1f}
+            <div class="radar-card">
+                <b style="color:white; font-size:16px;">{s['ticker'].replace('=X','')}</b><br>
+                <span style="color:{s['cor']}; font-weight:900;">{s['tipo']} DETECTADA</span><br>
+                <small style="color:#888;">Força RSI: {s['rsi']:.1f}</small>
             </div>
             """, unsafe_allow_html=True)
+            # Tocar sino de alerta
+            st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
 
-with col_R:
-    # Seleção do Ativo Principal para Análise Gráfica
-    ativo_selecionado = st.selectbox("Analise um ativo do Scanner ou Watchlist:", list(watchlist.values()))
-    ticker_final = [k for k, v in watchlist.items() if v == ativo_selecionado][0]
+    # --- CALCULADORA DE SOROS NIVEL 3 ---
+    st.markdown("<div class='soros-box'>", unsafe_allow_html=True)
+    st.markdown("### 🏆 CALCULADORA SOROS")
+    banca_v = st.number_input("Banca Total ($):", value=100.0)
+    risco_v = st.slider("Risco da 1ª Mão (%):", 1, 20, 5)
+    payout_v = st.number_input("Payout Quotex (%):", value=87)
     
-    # Cronômetro
-    segundos = 60 - datetime.now().second
-    st.markdown(f'<div class="timer-display">⏳ VELA M1: {segundos}s</div>', unsafe_allow_html=True)
+    # Cálculos Matemáticos
+    e1 = (banca_v * risco_v) / 100
+    l1 = e1 * (payout_v / 100)
+    e2 = e1 + l1
+    l2 = e2 * (payout_v / 100)
+    e3 = e2 + l2
+    l3 = e3 * (payout_v / 100)
+    alvo_final = l1 + l2 + l3
+
+    st.markdown(f"<span class='step-text'>ENTRADA 1:</span> <span class='val-text'>${e1:.2f}</span>", unsafe_allow_html=True)
+    st.markdown(f"<span class='step-text'>SOROS NIVEL 2:</span> <span class='val-text'>${e2:.2f}</span>", unsafe_allow_html=True)
+    st.markdown(f"<span class='step-text'>SOROS NIVEL 3:</span> <span class='val-text'>${e3:.2f}</span>", unsafe_allow_html=True)
+    st.success(f"LUCRO POTENCIAL: ${alvo_final:.2f}")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col_main:
+    # Seleção de Ativo Principal
+    ativo_f = st.selectbox("🎯 ATIVO PARA OPERAÇÃO:", ativos_monitorados)
     
-    # Carregamento do Gráfico
-    df_main = yf.download(ticker_final, period="1d", interval="1m", progress=False)
-    if not df_main.empty:
-        if isinstance(df_main.columns, pd.MultiIndex): df_main.columns = df_main.columns.get_level_values(0)
+    # Cronómetro de Vela
+    seg = 60 - datetime.now().second
+    cor_timer = "#00ff00" if seg > 10 else "#ff0000"
+    st.markdown(f'<div class="timer-display" style="color:{cor_timer}; border-color:{cor_timer};">⏳ FECHO VELA: {seg}s</div>', unsafe_allow_html=True)
+
+    # Gráfico
+    df_f = yf.download(ativo_f, period="1d", interval="1m", progress=False)
+    if not df_f.empty:
+        if isinstance(df_f.columns, pd.MultiIndex): df_f.columns = df_f.columns.get_level_values(0)
         
-        fig = go.Figure(data=[go.Candlestick(x=df_main.index, open=df_main['Open'], high=df_main['High'], low=df_main['Low'], close=df_main['Close'])])
-        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450, margin=dict(l=0,r=0,t=0,b=0))
+        fig = go.Figure(data=[go.Candlestick(x=df_f.index, open=df_f['Open'], high=df_f['High'], low=df_f['Low'], close=df_f['Close'])])
+        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450, 
+                          margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='#000', plot_bgcolor='#000')
         st.plotly_chart(fig, use_container_width=True)
-        
-        # Link Dinâmico Quotex
-        ativo_limpo = ticker_final.replace("=X", "").replace("-USD", "").replace("=F", "").upper()
-        st.link_button(f"🔥 ENTRAR AGORA EM {ativo_selecionado} NA QUOTEX", f"https://qxbroker.com/pt/trade/{ativo_limpo}", use_container_width=True)
+
+        # Botão de Execução Dinâmico
+        link_ticker = ativo_f.replace("=X","").replace("-USD","").replace("=F","")
+        st.link_button(f"🔥 EXECUTAR NÍVEL 1 (${e1:.2f}) EM {link_ticker}", f"https://qxbroker.com/pt/trade/{link_ticker}", use_container_width=True)
 
 time.sleep(1)
 st.rerun()
