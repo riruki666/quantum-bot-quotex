@@ -7,110 +7,112 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="STRANGER AI - QUOTEX FULL", page_icon="💰", layout="wide")
+st.set_page_config(page_title="STRANGER AI - PRECISION", page_icon="🎯", layout="wide")
 
-# --- CSS: ESTILO PROFISSIONAL E SCANNÁVEL ---
+# --- CSS: DESIGN DE ALTA PRECISÃO ---
 st.markdown("""
     <style>
     .stApp { background-color: #050505 !important; }
     .main-title {
-        color: #00ff00; font-weight: 900; font-size: 40px;
-        text-align: center; text-shadow: 0 0 15px #00ff00; margin-top: -60px;
+        color: #ffffff; font-weight: 900; font-size: 40px;
+        text-align: center; text-shadow: 0 0 15px #ff0000; margin-top: -60px;
     }
-    .card-ativo {
-        background: #111; padding: 10px; border-radius: 8px;
-        border: 1px solid #333; margin-bottom: 5px;
+    .timer-box {
+        font-size: 50px; font-weight: 900; text-align: center;
+        color: #00ff00; background: #111; border: 2px solid #333;
+        border-radius: 10px; padding: 5px; margin-bottom: 20px;
     }
-    .signal-buy { background: #004400; border: 2px solid #00ff00; padding: 10px; border-radius: 10px; text-align: center; font-weight: bold; }
-    .signal-sell { background: #440000; border: 2px solid #ff0000; padding: 10px; border-radius: 10px; text-align: center; font-weight: bold; }
+    .signal-card {
+        padding: 20px; border-radius: 15px; text-align: center;
+        font-size: 24px; font-weight: 800; border: 4px solid #fff;
+        margin-bottom: 10px;
+    }
+    .countdown-text { font-size: 35px; color: #ffcc00; font-weight: 900; }
     </style>
-    <h1 class="main-title">STRANGER QUOTEX EXPLORER</h1>
+    <h1 class="main-title">STRANGER PRECISION AI</h1>
     """, unsafe_allow_html=True)
 
-# --- LISTA COMPLETA DE ATIVOS QUOTEX (FOREX, STOCKS, CRYPTO, COMMODITIES) ---
-ativos_quotex = {
-    "EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X", 
-    "USD/BRL": "BRL=X", "AUD/USD": "AUDUSD=X", "EUR/GBP": "EURGBP=X",
-    "FACEBOOK (META)": "META", "APPLE": "AAPL", "GOOGLE": "GOOGL", 
-    "AMAZON": "AMZN", "NETFLIX": "NFLX", "MICROSOFT": "MSFT", 
-    "TESLA": "TSLA", "BITCOIN": "BTC-USD", "ETHEREUM": "ETH-USD",
-    "OURO (GOLD)": "GC=F", "PRATA (SILVER)": "SI=F", "PETRÓLEO (CRUDE)": "CL=F"
+# --- ESTADOS DA SESSÃO ---
+if 'sinal_atual' not in st.session_state: st.session_state.sinal_atual = None
+if 'expira_em' not in st.session_state: st.session_state.expira_em = 0
+
+# --- ATIVOS ---
+ativos = {
+    "EUR/USD": "EURUSD=X", "USD/BRL": "BRL=X", "BTC/USD": "BTC-USD",
+    "OURO": "GC=F", "FACEBOOK": "META", "APPLE": "AAPL"
 }
 
-# --- MOTOR DE DADOS OTIMIZADO ---
 @st.cache_data(ttl=1)
-def fetch_full_data(t):
+def get_live_data(t):
     try:
         d = yf.download(t, period="1d", interval="1m", progress=False)
         if d.empty or len(d) < 30: return None
         if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
-        return d.astype(float).dropna().tail(60)
+        return d.astype(float).dropna().tail(50)
     except: return None
 
-# --- SIDEBAR: GESTÃO DE GANHOS ---
-if 'profit_total' not in st.session_state: st.session_state.profit_total = 0.0
-with st.sidebar:
-    st.header("💰 GESTÃO DE BANCA")
-    meta = st.number_input("Meta de Ganho ($):", value=50.0)
-    loss_limit = st.number_input("Stop Loss ($):", value=20.0)
-    st.divider()
-    st.metric("LUCRO NA SESSÃO", f"$ {st.session_state.profit_total:.2f}")
-    
-    if st.session_state.profit_total >= meta:
-        st.success("✅ META ATINGIDA! PARE!")
-    elif st.session_state.profit_total <= -loss_limit:
-        st.error("❌ LIMITE DE PERDA! PARE!")
-
-# --- LAYOUT PRINCIPAL ---
-col_radar, col_chart = st.columns([1.3, 2.7])
+# --- LAYOUT ---
+col_radar, col_chart = st.columns([1.2, 2.8])
 
 with col_radar:
-    st.markdown("### 📡 RADAR DE ATIVOS")
+    # Relógio da Vela
+    segundos_vela = 60 - datetime.now().second
+    st.markdown(f'<div class="timer-box">{segundos_vela:02d}s</div>', unsafe_allow_html=True)
     
-    # Botão para forçar atualização
-    if st.button("🔄 ATUALIZAR SCANNER"): st.rerun()
+    st.markdown("### 📡 SCANNER DE FLUXO")
     
-    # Loop rápido de Scanner
-    for nome, ticker in ativos_quotex.items():
-        df = fetch_full_data(ticker)
-        if df is not None:
-            # Indicadores Rápidos (Agresividade Média)
-            rsi = ta.rsi(df['Close'], length=7).iloc[-1]
-            bb = ta.bbands(df['Close'], length=20, std=2.0)
-            last = df['Close'].iloc[-1]
-            
-            # Condições de Suporte/Resistência Automáticos
-            res_diaria = df['High'].max()
-            sup_diaria = df['Low'].min()
-            
-            if rsi < 32 or last <= bb.iloc[-1, 0] or last <= sup_diaria:
-                st.markdown(f'<div class="signal-buy">{nome}<br>CALL (COMPRA) 🚀</div>', unsafe_allow_html=True)
-            elif rsi > 68 or last >= bb.iloc[-1, 2] or last >= res_diaria:
-                st.markdown(f'<div class="signal-sell">{nome}<br>PUT (VENDA) 🔥</div>', unsafe_allow_html=True)
-            else:
-                # Exibe o ativo em modo neutro para saber que está funcionando
-                st.markdown(f'<div class="card-ativo">{nome}: Neutro</div>', unsafe_allow_html=True)
+    # Busca novo sinal apenas se não houver um ativo no cronômetro
+    if st.session_state.sinal_atual is None:
+        for nome, tick in ativos.items():
+            df = get_live_data(tick)
+            if df is not None:
+                rsi = ta.rsi(df['Close'], length=5).iloc[-1]
+                bb = ta.bbands(df['Close'], length=20, std=2.0)
+                last = df['Close'].iloc[-1]
+                
+                # Lógica de Reversão Confirmada (Evita comprar em queda livre)
+                # Compra: Toca a banda inferior + RSI < 30
+                if last <= bb.iloc[-1, 0] and rsi < 30:
+                    st.session_state.sinal_atual = {"nome": nome, "tipo": "COMPRA (CALL) ⬆️", "cor": "#00ff00"}
+                    st.session_state.expira_em = time.time() + 15 # 15 Segundos para entrar
+                    break
+                # Venda: Toca a banda superior + RSI > 70
+                elif last >= bb.iloc[-1, 2] and rsi > 70:
+                    st.session_state.sinal_atual = {"nome": nome, "tipo": "VENDA (PUT) ⬇️", "cor": "#ff0000"}
+                    st.session_state.expira_em = time.time() + 15
+                    break
+
+    # Exibição do Sinal com Cronômetro de Validade
+    if st.session_state.sinal_atual:
+        tempo_restante = int(st.session_state.expira_em - time.time())
+        
+        if tempo_restante > 0:
+            s = st.session_state.sinal_atual
+            st.markdown(f"""
+                <div class="signal-card" style="background:{s['cor']}; color:white;">
+                    {s['nome']}<br>{s['tipo']}<br>
+                    <span class="countdown-text">{tempo_restante}s</span>
+                </div>
+                <p style="text-align:center; color:gray;">Após 0s o sinal será descartado.</p>
+            """, unsafe_allow_html=True)
+            st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
+        else:
+            st.session_state.sinal_atual = None
+            st.rerun()
+    else:
+        st.write("🔍 Analisando tendências...")
 
 with col_chart:
-    sel_ativo = st.selectbox("FOCO NO GRÁFICO:", list(ativos_quotex.keys()))
-    df_v = fetch_full_data(ativos_quotex[sel_ativo])
+    sel = st.selectbox("GRÁFICO EM TEMPO REAL:", list(ativos.keys()))
+    df_v = get_live_data(ativos[sel])
     
     if df_v is not None:
         fig = go.Figure(data=[go.Candlestick(x=df_v.index, open=df_v['Open'], high=df_v['High'], low=df_v['Low'], close=df_v['Close'])])
-        
-        # Desenha Linhas de S/R Automáticas do Ativo Selecionado
-        fig.add_hline(y=df_v['High'].max(), line_dash="dot", line_color="red", annotation_text="RESISTÊNCIA")
-        fig.add_hline(y=df_v['Low'].min(), line_dash="dot", line_color="green", annotation_text="SUPORTE")
-        
-        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=500, margin=dict(l=0,r=0,t=0,b=0))
+        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=450, margin=dict(l=0,r=0,t=0,b=0))
         st.plotly_chart(fig, use_container_width=True)
         
-        # Botões de Resultado para o Indicador de Ganhos
-        c_win, c_loss = st.columns(2)
-        if c_win.button("✅ REGISTRAR WIN"): st.session_state.profit_total += 10.0 # Exemplo de valor fixo
-        if c_loss.button("❌ REGISTRAR LOSS"): st.session_state.profit_total -= 10.0
+        if st.session_state.sinal_atual:
+            st.link_button(f"🚀 ABRIR {st.session_state.sinal_atual['nome']} NA QUOTEX", f"https://qxbroker.com/pt/trade/{st.session_state.sinal_atual['nome'].replace('/','')}", use_container_width=True)
 
-        st.link_button(f"🔗 OPERAR {sel_ativo} NA QUOTEX", f"https://qxbroker.com/pt/trade/{sel_ativo.replace('/','')}")
-
-time.sleep(2) # Pausa leve para não sobrecarregar o Yahoo
+time.sleep(1)
 st.rerun()
