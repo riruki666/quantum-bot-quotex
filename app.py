@@ -7,105 +7,101 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="STRANGER AI - SAFE MODE", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="STRANGER AI - ANALISTA PRO", page_icon="📈", layout="wide")
 
-# --- CSS: ESTÉTICA DE SEGURANÇA ---
+# --- CSS: DESIGN MINIMALISTA E PROFISSIONAL ---
 st.markdown("""
     <style>
-    .stApp { background-color: #000000 !important; }
+    .stApp { background-color: #050505 !important; }
     .main-title {
-        color: #ff0000; font-weight: 900; font-size: 50px;
-        text-align: center; text-shadow: 0 0 20px #ff0000;
+        color: #ffffff; font-weight: 900; font-size: 45px;
+        text-align: center; text-shadow: 0 0 10px #ff0000;
         margin-top: -60px;
     }
-    .safe-zone {
-        padding: 15px; border-radius: 10px; text-align: center;
-        background: #002200; border: 1px solid #00ff00; color: #00ff00;
-        margin-bottom: 20px; font-weight: bold;
+    .metric-box {
+        background: #111; padding: 15px; border-radius: 10px;
+        border: 1px solid #333; text-align: center;
     }
-    .risk-zone {
-        padding: 15px; border-radius: 10px; text-align: center;
-        background: #220000; border: 1px solid #ff0000; color: #ff0000;
-        margin-bottom: 20px; font-weight: bold;
-    }
-    .card-oportunidade {
-        background: #111; padding: 20px; border-radius: 15px;
-        text-align: center; border: 3px solid #00ff00; margin-bottom: 15px;
+    .signal-box {
+        padding: 25px; border-radius: 15px; text-align: center;
+        font-size: 28px; font-weight: 800; border: 2px dashed #ff0000;
     }
     </style>
-    <h1 class="main-title">STRANGER SAFE-SNIPER</h1>
+    <h1 class="main-title">STRANGER ANALISTA PRO</h1>
     """, unsafe_allow_html=True)
 
-# --- CONFIGURAÇÃO ---
-ativos_config = {
-    "USD/BRL": {"tick": "BRL=X", "std": 1.5, "rsi": 3},
-    "EUR/USD": {"tick": "EURUSD=X", "std": 1.5, "rsi": 3},
-    "FACEBOOK": {"tick": "META", "std": 2.0, "rsi": 7}
-}
+# --- ATIVOS E CONFIGURAÇÕES ---
+ativos_pro = {"USD/BRL": "BRL=X", "EUR/USD": "EURUSD=X", "OURO": "GC=F", "BITCOIN": "BTC-USD"}
 
 @st.cache_data(ttl=1)
-def get_data_safe(t):
+def fetch_analise_pro(t):
     try:
         d = yf.download(t, period="1d", interval="1m", progress=False)
-        if d.empty or len(d) < 30: return None
+        if d.empty or len(d) < 50: return None
         if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
         return d.astype(float).dropna()
     except: return None
 
-# --- MOTOR DE ANÁLISE DE RISCO ---
-def detectar_risco(df):
-    # Calcula a Média Móvel de 50 períodos para ver a tendência macro
-    sma50 = ta.sma(df['Close'], length=30)
-    preco_atual = df['Close'].iloc[-1]
-    distancia = abs(preco_atual - sma50.iloc[-1])
+# --- MOTOR DE ANÁLISE DE VELA (PRICE ACTION) ---
+def analisar_anatomia_vela(df):
+    ultima = df.iloc[-1]
+    corpo = abs(ultima['Close'] - ultima['Open'])
+    pavio_sup = ultima['High'] - max(ultima['Open'], ultima['Close'])
+    pavio_inf = min(ultima['Open'], ultima['Close']) - ultima['Low']
     
-    # Se o preço está se afastando demais da média em linha reta, é zona de risco (Rompimento)
-    # Calculamos a inclinação das últimas 5 velas
-    diff = df['Close'].diff(5).iloc[-1]
-    volatilidade = ta.atr(df['High'], df['Low'], df['Close'], length=14).iloc[-1]
+    # Detecção de Rejeição (Pavio deve ser maior que o corpo)
+    rejeicao_compra = pavio_inf > (corpo * 1.5)
+    rejeicao_venda = pavio_sup > (corpo * 1.5)
     
-    if abs(diff) > (volatilidade * 2.5): # Movimento muito brusco
-        return True # RISCO ALTO
-    return False # MERCADO TÉCNICO
+    return rejeicao_compra, rejeicao_venda
 
-# --- INTERFACE ---
-col_L, col_R = st.columns([1.2, 2.8])
+# --- LAYOUT PRINCIPAL ---
+col_stats, col_main = st.columns([1, 2.5])
 
-with col_L:
-    st.markdown("### 📊 STATUS DO MERCADO")
-    
-    sel_ativo = st.selectbox("VERIFICAR ATIVO:", list(ativos_config.keys()))
-    df = get_data_safe(ativos_config[sel_ativo]["tick"])
+with col_stats:
+    st.markdown("### 🔍 ANÁLISE DE FLUXO")
+    sel_ativo = st.selectbox("ATIVO ANALISADO:", list(ativos_pro.keys()))
+    df = fetch_analise_pro(ativos_pro[sel_ativo])
     
     if df is not None:
-        esta_em_risco = detectar_risco(df)
+        # Indicadores de Confluência
+        rsi = ta.rsi(df['Close'], length=7).iloc[-1]
+        bb = ta.bbands(df['Close'], length=20, std=2.0)
+        rej_compra, rej_venda = analisar_anatomia_vela(df)
+        last_p = df['Close'].iloc[-1]
         
-        if esta_em_risco:
-            st.markdown('<div class="risk-zone">⚠️ MERCADO EM TENDÊNCIA FORTE<br>ALERTA BLOQUEADO PARA SEGURANÇA</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="safe-zone">✅ MERCADO LATERALIZADO<br>ZONA SEGURA PARA RETRAÇÃO</div>', unsafe_allow_html=True)
-            
-            # --- LÓGICA DE SINAL (SÓ RODA SE NÃO TIVER EM RISCO) ---
-            cp = df['Close'].squeeze()
-            rsi = ta.rsi(cp, length=ativos_config[sel_ativo]["rsi"]).iloc[-1]
-            bb = ta.bbands(cp, length=20, std=ativos_config[sel_ativo]["std"])
-            last = cp.iloc[-1]
-            
-            if rsi < 35 or last <= bb.iloc[-1, 0]:
-                st.markdown(f'<div class="card-oportunidade">🎯 SINAL DETECTADO<br>{sel_ativo}: COMPRA</div>', unsafe_allow_html=True)
-                st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
-            elif rsi > 65 or last >= bb.iloc[-1, 2]:
-                st.markdown(f'<div class="card-oportunidade" style="border-color:red;">🎯 SINAL DETECTADO<br>{sel_ativo}: VENDA</div>', unsafe_allow_html=True)
-                st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
+        # Dashboard de Métricas
+        c1, c2 = st.columns(2)
+        c1.metric("RSI (7)", f"{rsi:.1f}")
+        c2.metric("VOLATIL.", f"{ta.atr(df['High'], df['Low'], df['Close'], length=14).iloc[-1]:.4f}")
 
-with col_R:
+        st.divider()
+        
+        # LOGICA DE RESULTADO CERTO (CONFLUÊNCIA TRIPLA)
+        # 1. Tocar na Banda | 2. RSI em Extremo | 3. Rejeição de Pavio
+        if (last_p <= bb.iloc[-1, 0] or rsi < 30) and rej_compra:
+            st.markdown('<div class="signal-box" style="border-color:#00ff00; color:#00ff00;">🔥 SINAL CONFIRMADO<br>COMPRA (REJEIÇÃO)</div>', unsafe_allow_html=True)
+            st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
+        elif (last_p >= bb.iloc[-1, 2] or rsi > 70) and rej_venda:
+            st.markdown('<div class="signal-box" style="border-color:#ff0000; color:#ff0000;">🔥 SINAL CONFIRMADO<br>VENDA (REJEIÇÃO)</div>', unsafe_allow_html=True)
+            st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
+        else:
+            st.info("Aguardando Confluência de Preço + Volume + Rejeição...")
+
+with col_main:
     if df is not None:
+        # Gráfico com Candlestick Reais
         
         fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=500, margin=dict(l=0,r=0,t=0,b=0))
+        
+        # Adiciona as Bandas de Bollinger no gráfico para visualização
+        fig.add_trace(go.Scatter(x=df.index, y=bb.iloc[:, 0], name='Banda Inf', line=dict(color='rgba(255,255,255,0.2)')))
+        fig.add_trace(go.Scatter(x=df.index, y=bb.iloc[:, 2], name='Banda Sup', line=dict(color='rgba(255,255,255,0.2)')))
+        
+        fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=550, margin=dict(l=0,r=0,t=0,b=0))
         st.plotly_chart(fig, use_container_width=True)
         
-        st.link_button(f"🔥 OPERAR {sel_ativo} NA QUOTEX", f"https://qxbroker.com/pt/trade/{sel_ativo.replace('/','')}", use_container_width=True)
+        st.link_button(f"🚀 OPERAR {sel_ativo} NA QUOTEX", f"https://qxbroker.com/pt/trade/{sel_ativo.replace('/','')}", use_container_width=True)
 
 time.sleep(1)
 st.rerun()
