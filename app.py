@@ -6,50 +6,60 @@ import plotly.graph_objects as go
 from datetime import datetime
 import time
 
-# --- CONFIGURAÇÃO ---
-st.set_page_config(page_title="STRANGER AI - SINAL DIRETO", page_icon="⚡", layout="wide")
+# --- CONFIGURAÇÃO DA FERRAMENTA ---
+st.set_page_config(page_title="STRANGER AI - LS", page_icon="⚡", layout="wide")
 
-# --- CSS: DESIGN DE ALTO IMPACTO VISUAL ---
+# --- CSS: ESTILO PREMIUM COM ASSINATURA ---
 st.markdown("""
     <style>
     .stApp { background-color: #050505 !important; }
-    .main-title { color: #ffffff; font-weight: 900; font-size: 35px; text-align: center; margin-top: -60px; }
+    .footer-ls {
+        position: fixed; left: 0; bottom: 0; width: 100%;
+        background-color: #000; color: #444; text-align: center;
+        padding: 10px; font-weight: bold; font-size: 14px;
+        border-top: 1px solid #222; z-index: 100;
+    }
+    .main-title { color: #00ff00; font-weight: 900; font-size: 30px; text-align: center; margin-top: -60px; }
+    .dev-tag { color: #ffcc00; font-size: 16px; text-align: center; margin-bottom: 20px; }
     
-    /* ESTILO DOS CARDS DE SINAL */
     .card-compra {
-        background: linear-gradient(135deg, #00c853, #b2ff59);
-        color: black !important; padding: 40px; border-radius: 20px;
-        text-align: center; border: 5px solid #fff;
-        box-shadow: 0 0 50px rgba(0, 200, 83, 0.6);
-        animation: pulse 1s infinite;
+        background: linear-gradient(135deg, #00c853, #004d40);
+        color: white !important; padding: 30px; border-radius: 15px;
+        text-align: center; border: 3px solid #fff; box-shadow: 0 0 30px #00c853;
     }
     .card-venda {
-        background: linear-gradient(135deg, #d50000, #ff5252);
-        color: white !important; padding: 40px; border-radius: 20px;
-        text-align: center; border: 5px solid #fff;
-        box-shadow: 0 0 50px rgba(213, 0, 0, 0.6);
-        animation: pulse 1s infinite;
+        background: linear-gradient(135deg, #d50000, #4a148c);
+        color: white !important; padding: 30px; border-radius: 15px;
+        text-align: center; border: 3px solid #fff; box-shadow: 0 0 30px #d50000;
     }
-    .card-aguarde {
-        background: #111; color: #555; padding: 40px; border-radius: 20px;
-        text-align: center; border: 2px dashed #333;
+    .card-neutro {
+        background: #111; color: #555; padding: 30px; border-radius: 15px;
+        text-align: center; border: 1px dashed #333;
     }
-    
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.02); }
-        100% { transform: scale(1); }
-    }
-    
-    .texto-grande { font-size: 50px; font-weight: 900; margin-bottom: 0px; }
-    .texto-sub { font-size: 20px; font-weight: 600; }
+    .countdown-timer { font-size: 40px; font-weight: 900; color: #ffcc00; }
     </style>
-    <h1 class="main-title">STRANGER AI: SINALIZADOR DE ENTRADA</h1>
+    <h1 class="main-title">STRANGER AI SIGNAL</h1>
+    <p class="dev-tag">DESENVOLVIDO POR: <b>LUCAS SILVA - LS</b></p>
     """, unsafe_allow_html=True)
+
+# --- LISTA MASSIVA DE ATIVOS (QUOTEX COMPLETA) ---
+ativos_ls = {
+    # FOREX
+    "EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X", 
+    "USD/BRL": "BRL=X", "AUD/USD": "AUDUSD=X", "EUR/GBP": "EURGBP=X",
+    "USD/CAD": "USDCAD=X", "EUR/JPY": "EURJPY=X",
+    # AÇÕES
+    "FACEBOOK (META)": "META", "APPLE": "AAPL", "TESLA": "TSLA", 
+    "GOOGLE": "GOOGL", "AMAZON": "AMZN", "NETFLIX": "NFLX", 
+    "MICROSOFT": "MSFT", "NVIDIA": "NVDA", "INTEL": "INTC",
+    # CRIPTO & COMMODITIES
+    "BITCOIN": "BTC-USD", "ETHEREUM": "ETH-USD", "GOLD": "GC=F", 
+    "SILVER": "SI=F", "PETRÓLEO": "CL=F"
+}
 
 # --- MOTOR DE DADOS ---
 @st.cache_data(ttl=1)
-def get_data_direct(t):
+def get_data_ls(t):
     try:
         d = yf.download(t, period="1d", interval="1m", progress=False)
         if d.empty or len(d) < 30: return None
@@ -57,72 +67,71 @@ def get_data_direct(t):
         return d[['Open', 'High', 'Low', 'Close']].astype(float).dropna()
     except: return None
 
-# --- ATIVOS ---
-ativos = {"EUR/USD": "EURUSD=X", "USD/BRL": "BRL=X", "GBP/USD": "GBPUSD=X", "BTC/USD": "BTC-USD", "GOLD": "GC=F"}
+if 'sinal_ativo' not in st.session_state: st.session_state.sinal_ativo = None
+if 'timer_ls' not in st.session_state: st.session_state.timer_ls = 0
 
-# --- COLUNAS ---
+# --- LAYOUT ---
 col_menu, col_signal = st.columns([1, 2.5])
 
 with col_menu:
-    st.markdown("### ⚙️ CONFIGURAR")
-    sel = st.selectbox("ATIVO PARA MONITORAR:", list(ativos.keys()))
-    tempo_exp = st.selectbox("TEMPO DE EXPIRAÇÃO:", ["1 MINUTO", "2 MINUTOS", "5 MINUTOS"])
+    st.markdown("### 📡 RADAR LS")
+    sel = st.selectbox("ATIVO:", list(ativos_ls.keys()))
     st.divider()
-    st.info("O robô analisa RSI + Bandas de Bollinger em tempo real para dar a direção exata.")
-
+    st.write("Configurado para M1 (Retração)")
+    
 with col_signal:
-    df = get_data_direct(ativos[sel])
+    agora = time.time()
+    df = get_data_ls(ativos_ls[sel])
     
     if df is not None:
-        # Indicadores
         c = df['Close'].squeeze()
         rsi = ta.rsi(c, length=5).iloc[-1]
         bb = ta.bbands(c, length=20, std=2.0)
         last_p = c.iloc[-1]
         
-        # --- LÓGICA DE DECISÃO VISUAL ---
-        # COMPRA: Preço abaixo da Banda Inferior e RSI sobrevendido
-        if last_p <= bb.iloc[-1, 0] and rsi < 30:
-            st.markdown(f"""
-                <div class="card-compra">
-                    <p class="texto-sub">{sel} DETECTADO</p>
-                    <p class="texto-grande">ABRIR COMPRA ⬆️</p>
-                    <p class="texto-sub">CLIQUE NO BOTÃO VERDE NA QUOTEX</p>
-                    <hr>
-                    <p>Expiração: {tempo_exp}</p>
-                </div>
-            """, unsafe_allow_html=True)
-            st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/super-mario-power-up.mp3"></audio>', unsafe_allow_html=True)
-            
-        # VENDA: Preço acima da Banda Superior e RSI sobrecomprado
-        elif last_p >= bb.iloc[-1, 2] and rsi > 70:
-            st.markdown(f"""
-                <div class="card-venda">
-                    <p class="texto-sub">{sel} DETECTADO</p>
-                    <p class="texto-grande">ABRIR VENDA ⬇️</p>
-                    <p class="texto-sub">CLIQUE NO BOTÃO VERMELHO NA QUOTEX</p>
-                    <hr>
-                    <p>Expiração: {tempo_exp}</p>
-                </div>
-            """, unsafe_allow_html=True)
-            st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/bell.mp3"></audio>', unsafe_allow_html=True)
-            
+        # Lógica de Captura de Sinal
+        if st.session_state.sinal_ativo is None:
+            if last_p <= bb.iloc[-1, 0] and rsi < 30:
+                st.session_state.sinal_ativo = {"tipo": "COMPRA", "cor": "card-compra", "icon": "⬆️"}
+                st.session_state.timer_ls = agora + 15
+            elif last_p >= bb.iloc[-1, 2] and rsi > 70:
+                st.session_state.sinal_ativo = {"tipo": "VENDA", "cor": "card-venda", "icon": "⬇️"}
+                st.session_state.timer_ls = agora + 15
+
+        # Exibição do Sinal
+        if st.session_state.sinal_ativo:
+            restante = int(st.session_state.timer_ls - agora)
+            if restante > 0:
+                s = st.session_state.sinal_ativo
+                st.markdown(f"""
+                    <div class="{s['cor']}">
+                        <h2>{sel} - SINAL CONFIRMADO</h2>
+                        <h1 style="font-size:60px; margin:0;">{s['tipo']} {s['icon']}</h1>
+                        <p class="countdown-timer">{restante}s</p>
+                        <p>ENTRE AGORA PARA 1 MINUTO NA QUOTEX</p>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.session_state.sinal_ativo = None
+                st.rerun()
         else:
             st.markdown(f"""
-                <div class="card-aguarde">
-                    <p class="texto-grande">AGUARDANDO...</p>
-                    <p class="texto-sub">O {sel} ainda não atingiu a zona de entrada.</p>
-                    <p style="color:#555;">RSI Atual: {rsi:.2f} | Alvo: <30 ou >70</p>
+                <div class="card-neutro">
+                    <h2>ANALISANDO {sel}...</h2>
+                    <p>Aguardando toque na região de suporte ou resistência.</p>
                 </div>
             """, unsafe_allow_html=True)
 
-        # Gráfico de Apoio em baixo
+        # Gráfico
         st.divider()
         fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
         fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=350, margin=dict(l=0,r=0,t=0,b=0))
         st.plotly_chart(fig, use_container_width=True)
         
-        st.link_button(f"🔗 IR PARA A QUOTEX AGORA", f"https://qxbroker.com/pt/trade/{sel.replace('/','')}", use_container_width=True)
+        st.link_button(f"🚀 ABRIR {sel} NA QUOTEX", f"https://qxbroker.com/pt/trade/{sel.replace('/','')}", use_container_width=True)
+
+# Rodapé de Assinatura
+st.markdown('<div class="footer-ls">STRANGER AI SYSTEM - MADE BY LUCAS SILVA (LS) © 2026</div>', unsafe_allow_html=True)
 
 time.sleep(1)
 st.rerun()
