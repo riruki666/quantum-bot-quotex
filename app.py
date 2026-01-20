@@ -7,9 +7,9 @@ from datetime import datetime
 import time
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="STRANGER AI - SNIPER TIME", page_icon="⏱️", layout="wide")
+st.set_page_config(page_title="STRANGER AI - SAFE MODE", page_icon="🛡️", layout="wide")
 
-# --- CSS: DESIGN DE ALTA PRECISÃO ---
+# --- CSS: ESTÉTICA DE SEGURANÇA ---
 st.markdown("""
     <style>
     .stApp { background-color: #000000 !important; }
@@ -18,27 +18,25 @@ st.markdown("""
         text-align: center; text-shadow: 0 0 20px #ff0000;
         margin-top: -60px;
     }
-    .timer-vela {
-        font-size: 60px; font-weight: 900; text-align: center;
-        color: #00ff00; background: #111; border: 3px solid #333;
-        border-radius: 15px; margin-bottom: 10px;
+    .safe-zone {
+        padding: 15px; border-radius: 10px; text-align: center;
+        background: #002200; border: 1px solid #00ff00; color: #00ff00;
+        margin-bottom: 20px; font-weight: bold;
+    }
+    .risk-zone {
+        padding: 15px; border-radius: 10px; text-align: center;
+        background: #220000; border: 1px solid #ff0000; color: #ff0000;
+        margin-bottom: 20px; font-weight: bold;
     }
     .card-oportunidade {
         background: #111; padding: 20px; border-radius: 15px;
-        text-align: center; border: 3px solid #ffcc00; margin-bottom: 15px;
+        text-align: center; border: 3px solid #00ff00; margin-bottom: 15px;
     }
-    .expired-text { color: #ff0000; font-weight: bold; font-size: 20px; }
     </style>
-    <h1 class="main-title">STRANGER SNIPER TIME</h1>
+    <h1 class="main-title">STRANGER SAFE-SNIPER</h1>
     """, unsafe_allow_html=True)
 
-# --- INICIALIZAÇÃO DE ESTADO ---
-if 'sinal_ativo' not in st.session_state:
-    st.session_state.sinal_ativo = None
-if 'tempo_expiracao' not in st.session_state:
-    st.session_state.tempo_expiracao = 0
-
-# --- ATIVOS ---
+# --- CONFIGURAÇÃO ---
 ativos_config = {
     "USD/BRL": {"tick": "BRL=X", "std": 1.5, "rsi": 3},
     "EUR/USD": {"tick": "EURUSD=X", "std": 1.5, "rsi": 3},
@@ -46,79 +44,68 @@ ativos_config = {
 }
 
 @st.cache_data(ttl=1)
-def get_data_sniper(t):
+def get_data_safe(t):
     try:
         d = yf.download(t, period="1d", interval="1m", progress=False)
-        if d.empty or len(d) < 20: return None
+        if d.empty or len(d) < 30: return None
         if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
         return d.astype(float).dropna()
     except: return None
 
-# --- COLUNAS ---
-col_radar, col_view = st.columns([1.2, 2.8])
+# --- MOTOR DE ANÁLISE DE RISCO ---
+def detectar_risco(df):
+    # Calcula a Média Móvel de 50 períodos para ver a tendência macro
+    sma50 = ta.sma(df['Close'], length=30)
+    preco_atual = df['Close'].iloc[-1]
+    distancia = abs(preco_atual - sma50.iloc[-1])
+    
+    # Se o preço está se afastando demais da média em linha reta, é zona de risco (Rompimento)
+    # Calculamos a inclinação das últimas 5 velas
+    diff = df['Close'].diff(5).iloc[-1]
+    volatilidade = ta.atr(df['High'], df['Low'], df['Close'], length=14).iloc[-1]
+    
+    if abs(diff) > (volatilidade * 2.5): # Movimento muito brusco
+        return True # RISCO ALTO
+    return False # MERCADO TÉCNICO
 
-with col_radar:
-    # Cronômetro da Vela Atual
-    agora = datetime.now()
-    sec_vela = 60 - agora.second
-    st.markdown(f'<div class="timer-vela">{sec_vela:02d}s</div>', unsafe_allow_html=True)
+# --- INTERFACE ---
+col_L, col_R = st.columns([1.2, 2.8])
+
+with col_L:
+    st.markdown("### 📊 STATUS DO MERCADO")
     
-    # SCANNER DE NOVOS SINAIS
-    st.markdown("### 📡 BUSCANDO ENTRADA")
+    sel_ativo = st.selectbox("VERIFICAR ATIVO:", list(ativos_config.keys()))
+    df = get_data_safe(ativos_config[sel_ativo]["tick"])
     
-    # Se não houver sinal ativo, varre o mercado
-    if st.session_state.sinal_ativo is None:
-        for nome, c in ativos_config.items():
-            df = get_data_sniper(c["tick"])
-            if df is not None:
-                cp = df['Close'].squeeze()
-                rsi = ta.rsi(cp, length=c["rsi"]).iloc[-1]
-                bb = ta.bbands(cp, length=20, std=c["std"])
-                last = cp.iloc[-1]
-                
-                # Critério de Entrada
-                tipo = None
-                if rsi < 35 or last <= bb.iloc[-1, 0]: tipo = "COMPRA (CALL) ⬆️"
-                elif rsi > 65 or last >= bb.iloc[-1, 2]: tipo = "VENDA (PUT) ⬇️"
-                
-                if tipo:
-                    st.session_state.sinal_ativo = {"nome": nome, "tipo": tipo, "cor": "#00ff00" if "COMPRA" in tipo else "#ff0000"}
-                    st.session_state.tempo_expiracao = time.time() + 15 # 15 segundos de vida
-                    st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
-                    break # Foca em um sinal por vez
-    
-    # EXIBIÇÃO DO SINAL COM CRONÔMETRO DE EXPIRAÇÃO
-    if st.session_state.sinal_ativo:
-        tempo_restante = int(st.session_state.tempo_expiracao - time.time())
+    if df is not None:
+        esta_em_risco = detectar_risco(df)
         
-        if tempo_restante > 0:
-            s = st.session_state.sinal_ativo
-            st.markdown(f"""
-                <div class="card-oportunidade" style="border-color:{s['cor']};">
-                    <h2 style="color:{s['cor']};">{s['nome']}</h2>
-                    <h3 style="color:white;">{s['tipo']}</h3>
-                    <hr>
-                    <p style="color:#ffcc00; font-size:18px;">ENTRE AGORA NA QUOTEX!</p>
-                    <h1 style="color:#ffcc00;">{tempo_restante}s</h1>
-                </div>
-            """, unsafe_allow_html=True)
+        if esta_em_risco:
+            st.markdown('<div class="risk-zone">⚠️ MERCADO EM TENDÊNCIA FORTE<br>ALERTA BLOQUEADO PARA SEGURANÇA</div>', unsafe_allow_html=True)
         else:
-            # Tempo esgotou, remove o sinal
-            st.session_state.sinal_ativo = None
-            st.rerun()
+            st.markdown('<div class="safe-zone">✅ MERCADO LATERALIZADO<br>ZONA SEGURA PARA RETRAÇÃO</div>', unsafe_allow_html=True)
+            
+            # --- LÓGICA DE SINAL (SÓ RODA SE NÃO TIVER EM RISCO) ---
+            cp = df['Close'].squeeze()
+            rsi = ta.rsi(cp, length=ativos_config[sel_ativo]["rsi"]).iloc[-1]
+            bb = ta.bbands(cp, length=20, std=ativos_config[sel_ativo]["std"])
+            last = cp.iloc[-1]
+            
+            if rsi < 35 or last <= bb.iloc[-1, 0]:
+                st.markdown(f'<div class="card-oportunidade">🎯 SINAL DETECTADO<br>{sel_ativo}: COMPRA</div>', unsafe_allow_html=True)
+                st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
+            elif rsi > 65 or last >= bb.iloc[-1, 2]:
+                st.markdown(f'<div class="card-oportunidade" style="border-color:red;">🎯 SINAL DETECTADO<br>{sel_ativo}: VENDA</div>', unsafe_allow_html=True)
+                st.markdown('<audio autoplay><source src="https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3"></audio>', unsafe_allow_html=True)
 
-with col_view:
-    sel = st.selectbox("GRÁFICO DE MONITORAMENTO:", list(ativos_config.keys()))
-    df_v = get_data_sniper(ativos_config[sel]["tick"])
-    if df_v is not None:
+with col_R:
+    if df is not None:
         
-        fig = go.Figure(data=[go.Candlestick(x=df_v.index, open=df_v['Open'], high=df_v['High'], low=df_v['Low'], close=df_v['Close'])])
+        fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
         fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False, height=500, margin=dict(l=0,r=0,t=0,b=0))
         st.plotly_chart(fig, use_container_width=True)
-    
-    if st.session_state.sinal_ativo:
-        link_ativo = st.session_state.sinal_ativo['nome'].replace('/','')
-        st.link_button(f"🔥 EXECUTAR {st.session_state.sinal_ativo['nome']} AGORA", f"https://qxbroker.com/pt/trade/{link_ativo}", use_container_width=True)
+        
+        st.link_button(f"🔥 OPERAR {sel_ativo} NA QUOTEX", f"https://qxbroker.com/pt/trade/{sel_ativo.replace('/','')}", use_container_width=True)
 
 time.sleep(1)
 st.rerun()
